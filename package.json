@@ -1,0 +1,110 @@
+{
+  "name": "tablefmt-vscode",
+  "displayName": "tablefmt",
+  "description": "Format selections as tables using the tablefmt CLI",
+  "version": "0.1.0",
+  "publisher": "tadamic",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/tadamic/tablefmt-vscode"
+  },
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Formatters"
+  ],
+  "activationEvents": [],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "tablefmt.format",
+        "title": "Format selection as table",
+        "category": "tablefmt"
+      },
+      {
+        "command": "tablefmt.prettify",
+        "title": "Prettify selected table (re-align columns)",
+        "category": "tablefmt"
+      }
+    ],
+    "configuration": {
+      "title": "tablefmt",
+      "properties": {
+        "tablefmt.executablePath": {
+          "type": "string",
+          "default": "tablefmt",
+          "markdownDescription": "Path to the `tablefmt` binary. Defaults to `\"tablefmt\"` which requires the binary to be on PATH. Set an absolute path if VS Code is launched from a desktop shortcut and cannot see your shell PATH."
+        },
+        "tablefmt.defaultStyle": {
+          "type": "string",
+          "default": "github",
+          "enum": [
+            "github",
+            "psql",
+            "asciidoc",
+            "jira",
+            "rst",
+            "rst-grid",
+            "reddit",
+            "table-el",
+            "orgtbl",
+            "dots",
+            "ascii",
+            "modern",
+            "sharp",
+            "extended",
+            "heavy-outline"
+          ],
+          "enumDescriptions": [
+            "GitHub Flavored Markdown pipes",
+            "PostgreSQL psql client borders",
+            "AsciiDoc",
+            "Jira",
+            "reStructuredText simple tables",
+            "reStructuredText grid tables",
+            "Reddit Markdown",
+            "Emacs table.el",
+            "Emacs org-mode",
+            "Dot separators",
+            "Plain ASCII",
+            "Unicode box-drawing (modern)",
+            "Unicode sharp corners",
+            "Extended box-drawing",
+            "Heavy outline box-drawing"
+          ],
+          "markdownDescription": "Default output table style. **Note for `prettify`:** the existing table must already be in this format, since `--style` is used as both the input parser and the output renderer."
+        }
+      }
+    },
+    "menus": {
+      "editor/context": [
+        {
+          "command": "tablefmt.format",
+          "when": "editorHasSelection && !editorReadonly",
+          "group": "1_modification@50"
+        },
+        {
+          "command": "tablefmt.prettify",
+          "when": "editorHasSelection && !editorReadonly",
+          "group": "1_modification@51"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "compile": "tsc --noEmit",
+    "bundle": "node esbuild.mjs",
+    "bundle:watch": "node esbuild.mjs --watch",
+    "vscode:prepublish": "node esbuild.mjs --minify"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/vscode": "^1.85.0",
+    "@vscode/vsce": "^3.9.0",
+    "esbuild": "^0.28.1",
+    "typescript": "^5.8.0"
+  }
+}
