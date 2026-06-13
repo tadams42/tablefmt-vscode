@@ -3,11 +3,11 @@
   "displayName": "tablefmt",
   "description": "Format selections as tables using the tablefmt CLI",
   "version": "0.1.0",
-  "publisher": "tadamic",
+  "publisher": "tadams42",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/tadamic/tablefmt-vscode"
+    "url": "https://github.com/tadams42/tablefmt-vscode"
   },
   "engines": {
     "vscode": "^1.85.0"

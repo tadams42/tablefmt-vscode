@@ -1,10 +1,10 @@
 # tablefmt for VS Code
 
-Format and prettify tables in your editor using the [tablefmt](https://github.com/tadamic/tablefmt) CLI.
+Format and prettify tables in your editor using the [tablefmt](https://github.com/tadams42/tablefmt) CLI.
 
 ## Requirements
 
-`tablefmt` must be available on PATH. Install it from [GitHub releases](https://github.com/tadamic/tablefmt/releases) or via `cargo install tablefmt`.
+`tablefmt` must be available on PATH. Install it from [GitHub releases](https://github.com/tadams42/tablefmt/releases) or via `cargo install tablefmt`.
 
 If VS Code is launched from a desktop shortcut and cannot see your shell PATH, set an absolute path via the `tablefmt.executablePath` setting.
 
