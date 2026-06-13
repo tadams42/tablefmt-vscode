@@ -132,7 +132,7 @@ export function activate(context: vscode.ExtensionContext): void {
       }
 
       const cfg = getConfig();
-      const line = editor.selection.active.line;
+      const line = editor.selection.start.line;
       const filePath = editor.document.uri.fsPath;
 
       const result = await editPrettify(cfg.executablePath, filePath, line);
@@ -154,7 +154,7 @@ export function activate(context: vscode.ExtensionContext): void {
       }
 
       const cfg = getConfig();
-      const line = editor.selection.active.line;
+      const line = editor.selection.start.line;
       const col = editor.selection.active.character;
       const filePath = editor.document.uri.fsPath;
 
@@ -177,7 +177,7 @@ export function activate(context: vscode.ExtensionContext): void {
       }
 
       const cfg = getConfig();
-      const line = editor.selection.active.line;
+      const line = editor.selection.start.line;
       const col = editor.selection.active.character;
       const filePath = editor.document.uri.fsPath;
 
@@ -200,7 +200,7 @@ export function activate(context: vscode.ExtensionContext): void {
       }
 
       const cfg = getConfig();
-      const line = editor.selection.active.line;
+      const line = editor.selection.start.line;
       const col = editor.selection.active.character;
       const filePath = editor.document.uri.fsPath;
 
