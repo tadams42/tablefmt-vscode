@@ -77,47 +77,83 @@ function normalizeOutput(output: string, selectionEndsWithNewline: boolean): str
   return selectionEndsWithNewline ? output : output.replace(/\n$/, '');
 }
 
+const SOURCE_ITEMS: Array<{ label: string; description: string; value: SourceFormat }> = [
+  { label: 'CSV', description: 'Comma-separated values', value: 'csv' },
+  { label: 'TSV', description: 'Tab-separated values', value: 'tsv' },
+  { label: 'PSV', description: 'Pipe-separated values', value: 'psv' },
+  { label: 'JSON', description: 'JSON array of objects', value: 'json' },
+  { label: 'YAML', description: 'YAML sequence of mappings', value: 'yaml' },
+  { label: 'TOML', description: 'TOML array of tables', value: 'toml' },
+];
+
+const STYLE_ITEMS: Array<{ label: string; value: OutputStyle }> = [
+  { label: 'github', value: 'github' },
+  { label: 'psql', value: 'psql' },
+  { label: 'asciidoc', value: 'asciidoc' },
+  { label: 'jira', value: 'jira' },
+  { label: 'rst', value: 'rst' },
+  { label: 'rst-grid', value: 'rst-grid' },
+  { label: 'orgtbl', value: 'orgtbl' },
+  { label: 'dots', value: 'dots' },
+  { label: 'ascii', value: 'ascii' },
+  { label: 'modern', value: 'modern' },
+  { label: 'sharp', value: 'sharp' },
+  { label: 'extended', value: 'extended' },
+  { label: 'heavy-outline', value: 'heavy-outline' },
+];
+
+async function runFormatCommand(
+  style: OutputStyle | undefined
+): Promise<void> {
+  const editor = vscode.window.activeTextEditor;
+  if (!editor) return;
+
+  const selectionText = getSelectionText(editor);
+  if (!selectionText) {
+    void vscode.window.showErrorMessage(
+      'tablefmt: No text selected. Select the data to format.'
+    );
+    return;
+  }
+
+  const picked = await vscode.window.showQuickPick(SOURCE_ITEMS, {
+    placeHolder: 'Select input format',
+    title: 'tablefmt: Format Selection',
+  });
+  if (!picked) return;
+
+  if (style === undefined) {
+    const pickedStyle = await vscode.window.showQuickPick(STYLE_ITEMS, {
+      placeHolder: 'Select output style',
+      title: 'tablefmt: Format Selection',
+    });
+    if (!pickedStyle) return;
+    style = pickedStyle.value;
+  }
+
+  const cfg = getConfig();
+  const result = await formatSelection(selectionText, {
+    executablePath: cfg.executablePath,
+    source: picked.value,
+    style,
+  });
+
+  const output = handleResult(result);
+  if (!output) return;
+
+  const finalOutput = normalizeOutput(output, selectionText.endsWith('\n'));
+  await editor.edit((b) => b.replace(editor.selection, finalOutput));
+}
+
 export function activate(context: vscode.ExtensionContext): void {
   context.subscriptions.push(
-    vscode.commands.registerCommand('tablefmt.format', async () => {
-      const editor = vscode.window.activeTextEditor;
-      if (!editor) return;
-
-      const selectionText = getSelectionText(editor);
-      if (!selectionText) {
-        void vscode.window.showErrorMessage(
-          'tablefmt: No text selected. Select the data to format.'
-        );
-        return;
-      }
-
-      const sourceItems: Array<{ label: string; description: string; value: SourceFormat }> = [
-        { label: 'CSV', description: 'Comma-separated values', value: 'csv' },
-        { label: 'TSV', description: 'Tab-separated values', value: 'tsv' },
-        { label: 'PSV', description: 'Pipe-separated values', value: 'psv' },
-        { label: 'JSON', description: 'JSON array of objects', value: 'json' },
-        { label: 'YAML', description: 'YAML sequence of mappings', value: 'yaml' },
-        { label: 'TOML', description: 'TOML array of tables', value: 'toml' },
-      ];
-
-      const picked = await vscode.window.showQuickPick(sourceItems, {
-        placeHolder: 'Select input format',
-        title: 'tablefmt: Format Selection',
-      });
-      if (!picked) return;
-
+    vscode.commands.registerCommand('tablefmt.format', () => {
       const cfg = getConfig();
-      const result = await formatSelection(selectionText, {
-        executablePath: cfg.executablePath,
-        source: picked.value,
-        style: cfg.defaultStyle,
-      });
+      return runFormatCommand(cfg.defaultStyle);
+    }),
 
-      const output = handleResult(result);
-      if (!output) return;
-
-      const finalOutput = normalizeOutput(output, selectionText.endsWith('\n'));
-      await editor.edit((b) => b.replace(editor.selection, finalOutput));
+    vscode.commands.registerCommand('tablefmt.formatWithStyle', () => {
+      return runFormatCommand(undefined);
     }),
 
     vscode.commands.registerCommand('tablefmt.prettify', async () => {

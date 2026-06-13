@@ -25,6 +25,11 @@
         "category": "tablefmt"
       },
       {
+        "command": "tablefmt.formatWithStyle",
+        "title": "Format selection as table with style",
+        "category": "tablefmt"
+      },
+      {
         "command": "tablefmt.prettify",
         "title": "Prettify table at cursor (re-align columns)",
         "category": "tablefmt"
@@ -94,6 +99,11 @@
       "editor/context": [
         {
           "command": "tablefmt.format",
+          "when": "editorHasSelection && !editorReadonly",
+          "group": "1_modification@50"
+        },
+        {
+          "command": "tablefmt.formatWithStyle",
           "when": "editorHasSelection && !editorReadonly",
           "group": "1_modification@50"
         },

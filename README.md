@@ -14,7 +14,8 @@ All commands are available in the Command Palette (`Ctrl+Shift+P` / `Cmd+Shift+P
 
 | Command | Description |
 |---|---|
-| `tablefmt: Format selection as table` | Convert selected CSV/TSV/PSV/JSON/YAML/TOML data into a formatted table. Prompts for input format. |
+| `tablefmt: Format selection as table` | Convert selected CSV/TSV/PSV/JSON/YAML/TOML data into a formatted table using `defaultStyle`. Prompts for input format. |
+| `tablefmt: Format selection as table with style` | Same as above, but also prompts for output style interactively. |
 | `tablefmt: Prettify table at cursor (re-align columns)` | Re-align columns of the table at the cursor (or at the start of the selection). |
 | `tablefmt: Add column before cursor` | Insert a blank column before the column at the cursor position. |
 | `tablefmt: Add column after cursor` | Insert a blank column after the column at the cursor position. |
