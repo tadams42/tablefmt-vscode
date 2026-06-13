@@ -26,7 +26,22 @@
       },
       {
         "command": "tablefmt.prettify",
-        "title": "Prettify selected table (re-align columns)",
+        "title": "Prettify table at cursor (re-align columns)",
+        "category": "tablefmt"
+      },
+      {
+        "command": "tablefmt.addColumnBefore",
+        "title": "Add column before cursor",
+        "category": "tablefmt"
+      },
+      {
+        "command": "tablefmt.addColumnAfter",
+        "title": "Add column after cursor",
+        "category": "tablefmt"
+      },
+      {
+        "command": "tablefmt.removeColumn",
+        "title": "Remove column at cursor",
         "category": "tablefmt"
       }
     ],
@@ -48,8 +63,6 @@
             "jira",
             "rst",
             "rst-grid",
-            "reddit",
-            "table-el",
             "orgtbl",
             "dots",
             "ascii",
@@ -65,8 +78,6 @@
             "Jira",
             "reStructuredText simple tables",
             "reStructuredText grid tables",
-            "Reddit Markdown",
-            "Emacs table.el",
             "Emacs org-mode",
             "Dot separators",
             "Plain ASCII",
@@ -75,7 +86,7 @@
             "Extended box-drawing",
             "Heavy outline box-drawing"
           ],
-          "markdownDescription": "Default output table style. **Note for `prettify`:** the existing table must already be in this format, since `--style` is used as both the input parser and the output renderer."
+          "markdownDescription": "Default output table style used by the `format` command."
         }
       }
     },
@@ -88,8 +99,23 @@
         },
         {
           "command": "tablefmt.prettify",
-          "when": "editorHasSelection && !editorReadonly",
+          "when": "!editorReadonly",
           "group": "1_modification@51"
+        },
+        {
+          "command": "tablefmt.addColumnBefore",
+          "when": "!editorReadonly",
+          "group": "1_modification@52"
+        },
+        {
+          "command": "tablefmt.addColumnAfter",
+          "when": "!editorReadonly",
+          "group": "1_modification@53"
+        },
+        {
+          "command": "tablefmt.removeColumn",
+          "when": "!editorReadonly",
+          "group": "1_modification@54"
         }
       ]
     }

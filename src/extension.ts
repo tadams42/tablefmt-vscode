@@ -1,7 +1,11 @@
 import * as vscode from 'vscode';
 import {
   formatSelection,
-  prettifySelection,
+  editPrettify,
+  addColumnBefore,
+  addColumnAfter,
+  removeColumn,
+  EditCommandResult,
   OutputStyle,
   SourceFormat,
   TablefmtResult,
@@ -40,6 +44,33 @@ function handleResult(result: TablefmtResult): string | undefined {
       break;
   }
   return undefined;
+}
+
+function handleEditResult(result: EditCommandResult): import('./tablefmt.js').EditResult | undefined {
+  if (result.ok) {
+    return result.result;
+  }
+  switch (result.kind) {
+    case 'not-found':
+      void vscode.window.showErrorMessage(
+        `tablefmt: binary not found at "${result.executablePath}". Install tablefmt and add it to PATH, or set tablefmt.executablePath in settings.`
+      );
+      break;
+    case 'error':
+    case 'spawn-error':
+      void vscode.window.showErrorMessage(`tablefmt: ${result.message}`);
+      break;
+  }
+  return undefined;
+}
+
+async function applyEditResult(
+  editor: vscode.TextEditor,
+  result: import('./tablefmt.js').EditResult
+): Promise<void> {
+  const endPos = editor.document.lineAt(result.endLine).range.end;
+  const range = new vscode.Range(result.startLine, 0, endPos.line, endPos.character);
+  await editor.edit((b) => b.replace(range, result.text));
 }
 
 function normalizeOutput(output: string, selectionEndsWithNewline: boolean): string {
@@ -93,25 +124,91 @@ export function activate(context: vscode.ExtensionContext): void {
       const editor = vscode.window.activeTextEditor;
       if (!editor) return;
 
-      const selectionText = getSelectionText(editor);
-      if (!selectionText) {
+      if (editor.document.isUntitled) {
         void vscode.window.showErrorMessage(
-          'tablefmt: No text selected. Select the table to prettify.'
+          'tablefmt: Save the file before prettifying a table.'
         );
         return;
       }
 
       const cfg = getConfig();
-      const result = await prettifySelection(selectionText, {
-        executablePath: cfg.executablePath,
-        style: cfg.defaultStyle,
-      });
+      const line = editor.selection.active.line;
+      const filePath = editor.document.uri.fsPath;
 
-      const output = handleResult(result);
-      if (!output) return;
+      const result = await editPrettify(cfg.executablePath, filePath, line);
+      const editResult = handleEditResult(result);
+      if (!editResult) return;
 
-      const finalOutput = normalizeOutput(output, selectionText.endsWith('\n'));
-      await editor.edit((b) => b.replace(editor.selection, finalOutput));
+      await applyEditResult(editor, editResult);
+    }),
+
+    vscode.commands.registerCommand('tablefmt.addColumnBefore', async () => {
+      const editor = vscode.window.activeTextEditor;
+      if (!editor) return;
+
+      if (editor.document.isUntitled) {
+        void vscode.window.showErrorMessage(
+          'tablefmt: Save the file before editing a table.'
+        );
+        return;
+      }
+
+      const cfg = getConfig();
+      const line = editor.selection.active.line;
+      const col = editor.selection.active.character;
+      const filePath = editor.document.uri.fsPath;
+
+      const result = await addColumnBefore(cfg.executablePath, filePath, line, col);
+      const editResult = handleEditResult(result);
+      if (!editResult) return;
+
+      await applyEditResult(editor, editResult);
+    }),
+
+    vscode.commands.registerCommand('tablefmt.addColumnAfter', async () => {
+      const editor = vscode.window.activeTextEditor;
+      if (!editor) return;
+
+      if (editor.document.isUntitled) {
+        void vscode.window.showErrorMessage(
+          'tablefmt: Save the file before editing a table.'
+        );
+        return;
+      }
+
+      const cfg = getConfig();
+      const line = editor.selection.active.line;
+      const col = editor.selection.active.character;
+      const filePath = editor.document.uri.fsPath;
+
+      const result = await addColumnAfter(cfg.executablePath, filePath, line, col);
+      const editResult = handleEditResult(result);
+      if (!editResult) return;
+
+      await applyEditResult(editor, editResult);
+    }),
+
+    vscode.commands.registerCommand('tablefmt.removeColumn', async () => {
+      const editor = vscode.window.activeTextEditor;
+      if (!editor) return;
+
+      if (editor.document.isUntitled) {
+        void vscode.window.showErrorMessage(
+          'tablefmt: Save the file before editing a table.'
+        );
+        return;
+      }
+
+      const cfg = getConfig();
+      const line = editor.selection.active.line;
+      const col = editor.selection.active.character;
+      const filePath = editor.document.uri.fsPath;
+
+      const result = await removeColumn(cfg.executablePath, filePath, line, col);
+      const editResult = handleEditResult(result);
+      if (!editResult) return;
+
+      await applyEditResult(editor, editResult);
     })
   );
 }
