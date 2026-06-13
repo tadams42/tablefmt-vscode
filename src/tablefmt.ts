@@ -151,7 +151,7 @@ export function formatSelection(
   opts: FormatOptions
 ): Promise<TablefmtResult> {
   return runTablefmt(
-    ['format', '--source', opts.source, '--style', opts.style, '--max-rows', '0'],
+    ['format', '--format', opts.source, '--style', opts.style, '--max-rows', '0'],
     input,
     opts.executablePath
   );
