@@ -157,6 +157,23 @@ export function formatSelection(
   );
 }
 
+export interface FormatWithDelimiterOptions {
+  executablePath: string;
+  delimiter: string;
+  style: OutputStyle;
+}
+
+export function formatSelectionWithDelimiter(
+  input: string,
+  opts: FormatWithDelimiterOptions
+): Promise<TablefmtResult> {
+  return runTablefmt(
+    ['format', '--delimiter', opts.delimiter, '--style', opts.style, '--max-rows', '0'],
+    input,
+    opts.executablePath
+  );
+}
+
 export function editPrettify(
   executablePath: string,
   filePath: string,

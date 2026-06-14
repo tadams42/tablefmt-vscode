@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import {
   formatSelection,
+  formatSelectionWithDelimiter,
   editPrettify,
   addColumnBefore,
   addColumnAfter,
@@ -103,7 +104,8 @@ const STYLE_ITEMS: Array<{ label: string; value: OutputStyle }> = [
 ];
 
 async function runFormatCommand(
-  style: OutputStyle | undefined
+  style: OutputStyle | undefined,
+  source?: SourceFormat
 ): Promise<void> {
   const editor = vscode.window.activeTextEditor;
   if (!editor) return;
@@ -116,11 +118,14 @@ async function runFormatCommand(
     return;
   }
 
-  const picked = await vscode.window.showQuickPick(SOURCE_ITEMS, {
-    placeHolder: 'Select input format',
-    title: 'tablefmt: Format Selection',
-  });
-  if (!picked) return;
+  if (source === undefined) {
+    const picked = await vscode.window.showQuickPick(SOURCE_ITEMS, {
+      placeHolder: 'Select input format',
+      title: 'tablefmt: Format Selection',
+    });
+    if (!picked) return;
+    source = picked.value;
+  }
 
   if (style === undefined) {
     const pickedStyle = await vscode.window.showQuickPick(STYLE_ITEMS, {
@@ -134,7 +139,41 @@ async function runFormatCommand(
   const cfg = getConfig();
   const result = await formatSelection(selectionText, {
     executablePath: cfg.executablePath,
-    source: picked.value,
+    source,
+    style,
+  });
+
+  const output = handleResult(result);
+  if (!output) return;
+
+  const finalOutput = normalizeOutput(output, selectionText.endsWith('\n'));
+  await editor.edit((b) => b.replace(editor.selection, finalOutput));
+}
+
+async function runFormatWithDelimiterCommand(style: OutputStyle): Promise<void> {
+  const editor = vscode.window.activeTextEditor;
+  if (!editor) return;
+
+  const selectionText = getSelectionText(editor);
+  if (!selectionText) {
+    void vscode.window.showErrorMessage(
+      'tablefmt: No text selected. Select the data to format.'
+    );
+    return;
+  }
+
+  const delimiter = await vscode.window.showInputBox({
+    title: 'tablefmt: Format Selection',
+    prompt: 'Enter delimiter character',
+    placeHolder: 'e.g. ; or |',
+    validateInput: (v) => (v.length === 1 ? undefined : 'Enter a single character'),
+  });
+  if (delimiter === undefined) return;
+
+  const cfg = getConfig();
+  const result = await formatSelectionWithDelimiter(selectionText, {
+    executablePath: cfg.executablePath,
+    delimiter,
     style,
   });
 
@@ -147,9 +186,20 @@ async function runFormatCommand(
 
 export function activate(context: vscode.ExtensionContext): void {
   context.subscriptions.push(
-    vscode.commands.registerCommand('tablefmt.format', () => {
-      const cfg = getConfig();
-      return runFormatCommand(cfg.defaultStyle);
+    vscode.commands.registerCommand('tablefmt.formatPsv', () => {
+      return runFormatCommand(getConfig().defaultStyle, 'psv');
+    }),
+
+    vscode.commands.registerCommand('tablefmt.formatCsv', () => {
+      return runFormatCommand(getConfig().defaultStyle, 'csv');
+    }),
+
+    vscode.commands.registerCommand('tablefmt.formatTsv', () => {
+      return runFormatCommand(getConfig().defaultStyle, 'tsv');
+    }),
+
+    vscode.commands.registerCommand('tablefmt.formatCustomDelimiter', () => {
+      return runFormatWithDelimiterCommand(getConfig().defaultStyle);
     }),
 
     vscode.commands.registerCommand('tablefmt.formatWithStyle', () => {

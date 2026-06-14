@@ -20,8 +20,23 @@
   "contributes": {
     "commands": [
       {
-        "command": "tablefmt.format",
-        "title": "Format selection as table",
+        "command": "tablefmt.formatPsv",
+        "title": "Format selection as table - PSV",
+        "category": "tablefmt"
+      },
+      {
+        "command": "tablefmt.formatCsv",
+        "title": "Format selection as table - CSV",
+        "category": "tablefmt"
+      },
+      {
+        "command": "tablefmt.formatTsv",
+        "title": "Format selection as table - TSV",
+        "category": "tablefmt"
+      },
+      {
+        "command": "tablefmt.formatCustomDelimiter",
+        "title": "Format selection as table - custom delimiter",
         "category": "tablefmt"
       },
       {
@@ -98,7 +113,22 @@
     "menus": {
       "editor/context": [
         {
-          "command": "tablefmt.format",
+          "command": "tablefmt.formatPsv",
+          "when": "editorHasSelection && !editorReadonly",
+          "group": "1_modification@50"
+        },
+        {
+          "command": "tablefmt.formatCsv",
+          "when": "editorHasSelection && !editorReadonly",
+          "group": "1_modification@50"
+        },
+        {
+          "command": "tablefmt.formatTsv",
+          "when": "editorHasSelection && !editorReadonly",
+          "group": "1_modification@50"
+        },
+        {
+          "command": "tablefmt.formatCustomDelimiter",
           "when": "editorHasSelection && !editorReadonly",
           "group": "1_modification@50"
         },
