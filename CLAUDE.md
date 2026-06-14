@@ -23,24 +23,35 @@ npm run vscode:prepublish
 
 # Package as .vsix
 npx vsce package
+
+# Run unit tests
+npm test
 ```
 
-There are no automated tests. Manual testing is done by pressing F5 in VS Code, which launches an Extension Development Host using the `"Run Extension"` launch configuration (`.vscode/launch.json`). That config starts the esbuild watcher via the `"esbuild watch"` task before attaching.
+Unit tests run via Vitest (`npm test`). Manual testing is done by pressing F5 in VS Code, which launches an Extension Development Host using the `"Run Extension"` launch configuration (`.vscode/launch.json`). That config starts the esbuild watcher via the `"esbuild watch"` task before attaching.
 
 ## Architecture
 
-This is a VS Code extension with two source files:
+The extension has no external binary dependency. All table logic is implemented in TypeScript under `src/table/`:
 
-**`src/tablefmt.ts`** — pure Node.js layer. No VS Code API. Wraps the external `tablefmt` CLI binary via `child_process.spawn`. Exports two families of functions:
-- `formatSelection` / `formatSelectionWithDelimiter` — pipe selected text to `tablefmt format` via stdin, return stdout as the formatted table.
-- `editPrettify` / `addColumnBefore` / `addColumnAfter` / `removeColumn` — invoke `tablefmt edit <subcommand>` with a file path and cursor position; the CLI returns a JSON object `{ start_line, end_line, text, style }` describing the replacement range and new content.
+**`src/table/types.ts`** — `OutputStyle` union type (12 styles) and `ALL_STYLES` array.
 
-Result types use a discriminated union (`ok: true/false`) rather than exceptions. Two separate result types: `TablefmtResult` for format commands (stdout as string) and `EditCommandResult` for edit commands (parsed JSON).
+**`src/table/model.ts`** — `TableData` and `ColumnMeta` interfaces; `makeTableData` factory.
 
-**`src/extension.ts`** — VS Code integration layer. Reads config (`tablefmt.executablePath`, `tablefmt.defaultStyle`), registers all commands, handles errors by calling `vscode.window.showErrorMessage`, and applies edits to the active editor.
+**`src/table/numeric.ts`** — `populateColumnMeta`: detects numeric columns (all non-empty cells pass `Number.isFinite`) and sets `isNumeric` on each `ColumnMeta`.
+
+**`src/table/prettify.ts`** — `preprocess` / `postprocess` / `bareLine`: strips comment prefixes (`///`, `//`, `#`, `*`) before formatting and restores them after. Ported from `prettify.rs`.
+
+**`src/table/tableParser.ts`** — `detectStyle` (12-step cascade) and `parseTable`. Handles pipe-style tables (all styles except `rst`), RST simple tables, and AsciiDoc `[cols=...]` attribute lines.
+
+**`src/table/dataParser.ts`** — `detectDelimiter` (counts `|`, `;`, `,`, tab; returns highest) and `parseDelimited` for raw delimited data.
+
+**`src/table/render.ts`** — `render(data, style)`: all 12 style renderers. Nine styles use a generic `GridSpec` parameterized renderer; `jira`, `asciidoc`, and `rst` have custom renderers. Column widths use `[...str].length` for Unicode correctness. Numeric columns are right-aligned in both header and data rows.
+
+**`src/table/locate.ts`** — `findTableBounds` and `findDataLineBounds`: cursor-based table and data region detection when no selection is active.
+
+**`src/table/edit.ts`** — `findColumnAtCursor`, `addColumn`, `removeColumn`: column editing operations.
+
+**`src/extension.ts`** — VS Code integration layer. Reads config (`tablefmt.defaultStyle`), registers the 7 commands, handles errors via `vscode.window.showErrorMessage`, and applies edits to the active editor. No `child_process` usage.
 
 The build toolchain is esbuild (configured in `esbuild.mjs`), which bundles `src/extension.ts` into `dist/extension.js` as CJS targeting Node. TypeScript is used only for type-checking (`tsc --noEmit`); esbuild does the actual transpilation. The `vscode` module is marked external so it isn't bundled.
-
-## Key design constraint
-
-The `edit` subcommand family works on saved files (the CLI reads the file from disk), so those commands check `editor.document.isUntitled` and refuse to run if the file hasn't been saved yet. The `format` subcommand family pipes selected text via stdin and has no such restriction.

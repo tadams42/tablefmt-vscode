@@ -1,8 +1,8 @@
 {
   "name": "tablefmt-vscode",
   "displayName": "tablefmt",
-  "description": "Format selections as tables — no external binary required",
-  "version": "0.1.1",
+  "description": "Format tesxt and data as tables",
+  "version": "0.2.0",
   "publisher": "tadams42",
   "license": "MIT",
   "repository": {
