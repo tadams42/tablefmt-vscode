@@ -1,6 +1,6 @@
 {
-  "name": "tablefmt-vscode",
-  "displayName": "tablefmt",
+  "name": "tadams42-tablefmt",
+  "displayName": "tablefmt-vscode",
   "description": "Format tesxt and data as tables",
   "version": "0.2.0",
   "publisher": "tadams42",

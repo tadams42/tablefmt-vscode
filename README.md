@@ -2,6 +2,9 @@
 
 Format and prettify tables in your editor.
 
+<video src="https://github.com/user-attachments/assets/4c553478-f818-492f-8fc6-5779ac6c5f7b" autoplay loop muted playsinline width="100%">
+</video>
+
 ## Commands
 
 All commands are available in the Command Palette (`Ctrl+Shift+P` / `Cmd+Shift+P`) and in the right-click context menu.
