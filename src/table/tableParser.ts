@@ -1,0 +1,156 @@
+import { makeTableData } from './model.js';
+import type { TableData } from './model.js';
+import type { OutputStyle } from './types.js';
+
+// Matches structural-only lines: spaces, dashes, equals, plus, pipe, middle-dot, box-drawing U+2500–U+257F
+const BORDER_LINE_RE = /^[ \t\-=+|·─-╿]*$/;
+
+export function isBorderLine(line: string): boolean {
+  return BORDER_LINE_RE.test(line);
+}
+
+const SEP_CANDIDATES = ['│', '┃', '║', '·', '|'] as const;
+
+export function detectSeparator(line: string): string {
+  let best = '';
+  let bestCount = 0;
+  for (const c of SEP_CANDIDATES) {
+    let count = 0;
+    for (const ch of line) { if (ch === c) count++; }
+    if (count > bestCount) { bestCount = count; best = c; }
+  }
+  return best || '|';
+}
+
+function splitCells(line: string, sep: string): string[] {
+  return line.split(sep).map(s => s.trim()).filter(s => s !== '');
+}
+
+function parsePipeTable(lines: string[]): TableData {
+  const dataLines = lines.filter(l => l.trim() !== '' && !isBorderLine(l));
+  if (dataLines.length === 0) throw new Error('no data rows found in table');
+
+  const firstLine = dataLines[0] ?? '';
+  const sep = detectSeparator(firstLine);
+  const headers = splitCells(firstLine, sep);
+  if (headers.length === 0) throw new Error('table header row is empty');
+
+  const nCols = headers.length;
+  const rows = dataLines.slice(1).map(line => {
+    const cells = splitCells(line, sep);
+    while (cells.length < nCols) cells.push('');
+    return cells.slice(0, nCols) as string[];
+  });
+
+  return makeTableData(headers, rows);
+}
+
+function parseRstTable(lines: string[]): TableData {
+  const isRstSep = (l: string) => l.trim() !== '' && [...l].every(c => c === '=' || c === ' ');
+  const sepIndices: number[] = lines
+    .map((l, i) => ({ l, i }))
+    .filter(({ l }) => isRstSep(l))
+    .map(({ i }) => i);
+
+  if (sepIndices.length < 2) {
+    throw new Error(`RST table requires at least 2 separator lines, found ${sepIndices.length}`);
+  }
+
+  // Compute column char-ranges from first separator line
+  const firstSepChars = [...(lines[sepIndices[0] ?? 0] ?? '')];
+  const colRanges: [number, number][] = [];
+  let i = 0;
+  while (i < firstSepChars.length) {
+    if (firstSepChars[i] === '=') {
+      const start = i;
+      while (i < firstSepChars.length && firstSepChars[i] === '=') i++;
+      colRanges.push([start, i]);
+    } else {
+      i++;
+    }
+  }
+  if (colRanges.length === 0) throw new Error('no columns found in RST separator line');
+
+  const extract = (line: string): string[] => {
+    const chars = [...line];
+    return colRanges.map(([start, end]) => {
+      const s = Math.min(start, chars.length);
+      const e = Math.min(end, chars.length);
+      return chars.slice(s, e).join('').trim();
+    });
+  };
+
+  const between = (from: number, to: number) =>
+    lines.slice(from, to).find(l => l.trim() !== '');
+
+  const headerLine = between((sepIndices[0] ?? 0) + 1, sepIndices[1] ?? 0);
+  if (!headerLine) throw new Error('no header row found in RST table');
+
+  const headers = extract(headerLine);
+  const nCols = headers.length;
+  const lastSep = sepIndices[sepIndices.length - 1] ?? 0;
+
+  const rows = lines
+    .slice((sepIndices[1] ?? 0) + 1, lastSep)
+    .filter(l => l.trim() !== '' && !isRstSep(l))
+    .map(line => {
+      const cells = extract(line);
+      while (cells.length < nCols) cells.push('');
+      return cells.slice(0, nCols) as string[];
+    });
+
+  return makeTableData(headers, rows);
+}
+
+export function parseTable(lines: string[], style: OutputStyle): TableData {
+  if (style === 'rst') return parseRstTable(lines);
+  if (style === 'asciidoc') {
+    const filtered = lines.filter(l => !l.trimStart().startsWith('[cols='));
+    return parsePipeTable(filtered);
+  }
+  return parsePipeTable(lines);
+}
+
+export function detectStyle(bareLines: string[]): OutputStyle {
+  for (const line of bareLines) {
+    if (!line) continue;
+    if (line.startsWith('|===') || line.startsWith('[cols=')) return 'asciidoc';
+    if (line.includes('║')) return 'extended';
+    if (line.includes('━')) return 'heavy-outline';
+  }
+
+  const hasRstSep = bareLines.some(
+    l => l.trim() !== '' && !l.includes('|') && !l.includes('+') && [...l].every(c => c === '=' || c === ' ')
+  );
+  if (hasRstSep) return 'rst';
+
+  const hasPlusBorder = bareLines.some(
+    l => l !== '' && l.startsWith('+') && [...l].every(c => '+-=| '.includes(c))
+  );
+  if (hasPlusBorder) return 'ascii';
+
+  const hasBoxDrawing = bareLines.some(l => l.includes('│') || l.includes('─'));
+  if (hasBoxDrawing) {
+    const hasModernCorners = bareLines.some(
+      l => l.includes('╒') || l.includes('╘') || l.includes('╞') || l.includes('╡')
+    );
+    return hasModernCorners ? 'modern' : 'sharp';
+  }
+
+  const firstNonEmpty = bareLines.find(l => l !== '');
+  if (firstNonEmpty?.startsWith('||')) return 'jira';
+
+  const hasOrgtblSep = bareLines.some(
+    l => l !== '' && l.startsWith('|') && l.endsWith('|') && l.includes('+') &&
+         [...l].every(c => '|-+ '.includes(c))
+  );
+  if (hasOrgtblSep) return 'orgtbl';
+
+  const hasPsqlSep = bareLines.some(
+    l => l !== '' && !l.startsWith('|') && l.includes('+') && l.includes('-') &&
+         [...l].every(c => '-+ '.includes(c))
+  );
+  if (hasPsqlSep) return 'psql';
+
+  return 'github';
+}

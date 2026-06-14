@@ -1,7 +1,7 @@
 {
   "name": "tablefmt-vscode",
   "displayName": "tablefmt",
-  "description": "Format selections as tables using the tablefmt CLI",
+  "description": "Format selections as tables — no external binary required",
   "version": "0.1.1",
   "publisher": "tadams42",
   "license": "MIT",
@@ -20,33 +20,23 @@
   "contributes": {
     "commands": [
       {
-        "command": "tablefmt.formatPsv",
-        "title": "Format selection as table - PSV",
+        "command": "tablefmt.dataToTable",
+        "title": "Data to table",
         "category": "tablefmt"
       },
       {
-        "command": "tablefmt.formatCsv",
-        "title": "Format selection as table - CSV",
+        "command": "tablefmt.dataToTableStyle",
+        "title": "Data to table with style",
         "category": "tablefmt"
       },
       {
-        "command": "tablefmt.formatTsv",
-        "title": "Format selection as table - TSV",
+        "command": "tablefmt.formatTable",
+        "title": "Format table",
         "category": "tablefmt"
       },
       {
-        "command": "tablefmt.formatCustomDelimiter",
-        "title": "Format selection as table - custom delimiter",
-        "category": "tablefmt"
-      },
-      {
-        "command": "tablefmt.formatWithStyle",
-        "title": "Format selection as table with style",
-        "category": "tablefmt"
-      },
-      {
-        "command": "tablefmt.prettify",
-        "title": "Prettify table at cursor (re-align columns)",
+        "command": "tablefmt.formatTableToStyle",
+        "title": "Format table to style",
         "category": "tablefmt"
       },
       {
@@ -68,11 +58,6 @@
     "configuration": {
       "title": "tablefmt",
       "properties": {
-        "tablefmt.executablePath": {
-          "type": "string",
-          "default": "tablefmt",
-          "markdownDescription": "Path to the `tablefmt` binary. Defaults to `\"tablefmt\"` which requires the binary to be on PATH. Set an absolute path if VS Code is launched from a desktop shortcut and cannot see your shell PATH."
-        },
         "tablefmt.defaultStyle": {
           "type": "string",
           "default": "github",
@@ -84,7 +69,6 @@
             "rst",
             "rst-grid",
             "orgtbl",
-            "dots",
             "ascii",
             "modern",
             "sharp",
@@ -99,46 +83,35 @@
             "reStructuredText simple tables",
             "reStructuredText grid tables",
             "Emacs org-mode",
-            "Dot separators",
             "Plain ASCII",
             "Unicode box-drawing (modern)",
             "Unicode sharp corners",
             "Extended box-drawing",
             "Heavy outline box-drawing"
           ],
-          "markdownDescription": "Default output table style used by the `format` command."
+          "markdownDescription": "Default output table style used by the `Data to table` command."
         }
       }
     },
     "menus": {
       "editor/context": [
         {
-          "command": "tablefmt.formatPsv",
-          "when": "editorHasSelection && !editorReadonly",
+          "command": "tablefmt.dataToTable",
+          "when": "!editorReadonly",
           "group": "1_modification@50"
         },
         {
-          "command": "tablefmt.formatCsv",
-          "when": "editorHasSelection && !editorReadonly",
+          "command": "tablefmt.dataToTableStyle",
+          "when": "!editorReadonly",
           "group": "1_modification@50"
         },
         {
-          "command": "tablefmt.formatTsv",
-          "when": "editorHasSelection && !editorReadonly",
-          "group": "1_modification@50"
+          "command": "tablefmt.formatTable",
+          "when": "!editorReadonly",
+          "group": "1_modification@51"
         },
         {
-          "command": "tablefmt.formatCustomDelimiter",
-          "when": "editorHasSelection && !editorReadonly",
-          "group": "1_modification@50"
-        },
-        {
-          "command": "tablefmt.formatWithStyle",
-          "when": "editorHasSelection && !editorReadonly",
-          "group": "1_modification@50"
-        },
-        {
-          "command": "tablefmt.prettify",
+          "command": "tablefmt.formatTableToStyle",
           "when": "!editorReadonly",
           "group": "1_modification@51"
         },
@@ -164,13 +137,15 @@
     "compile": "tsc --noEmit",
     "bundle": "node esbuild.mjs",
     "bundle:watch": "node esbuild.mjs --watch",
-    "vscode:prepublish": "node esbuild.mjs --minify"
+    "vscode:prepublish": "node esbuild.mjs --minify",
+    "test": "vitest run"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
     "@types/vscode": "^1.85.0",
     "@vscode/vsce": "^3.9.0",
     "esbuild": "^0.28.1",
-    "typescript": "^5.8.0"
+    "typescript": "^5.8.0",
+    "vitest": "^4.1.8"
   }
 }

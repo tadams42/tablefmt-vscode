@@ -1,300 +1,233 @@
 import * as vscode from 'vscode';
+import type { OutputStyle } from './table/index.js';
 import {
-  formatSelection,
-  formatSelectionWithDelimiter,
-  editPrettify,
-  addColumnBefore,
-  addColumnAfter,
-  removeColumn,
-  EditCommandResult,
-  OutputStyle,
-  SourceFormat,
-  TablefmtResult,
-} from './tablefmt.js';
+  ALL_STYLES,
+  populateColumnMeta,
+  preprocess, postprocess, bareLine,
+  detectStyle, parseTable,
+  detectDelimiter, parseDelimited,
+  render,
+  findTableBounds, findDataLineBounds,
+  findColumnAtCursor, addColumn, removeColumn,
+} from './table/index.js';
 
-function getConfig(): { executablePath: string; defaultStyle: OutputStyle } {
-  const cfg = vscode.workspace.getConfiguration('tablefmt');
-  return {
-    executablePath: cfg.get<string>('executablePath', 'tablefmt'),
-    defaultStyle: cfg.get<OutputStyle>('defaultStyle', 'github'),
-  };
+function getDefaultStyle(): OutputStyle {
+  return vscode.workspace.getConfiguration('tablefmt').get<OutputStyle>('defaultStyle', 'github');
 }
 
-function getSelectionText(editor: vscode.TextEditor): string | undefined {
-  const text = editor.document.getText(editor.selection);
-  return text.length > 0 ? text : undefined;
+const STYLE_ITEMS = ALL_STYLES.map(s => ({ label: s, value: s }));
+
+async function pickStyle(title: string): Promise<OutputStyle | undefined> {
+  const picked = await vscode.window.showQuickPick(STYLE_ITEMS, {
+    placeHolder: 'Select output style',
+    title,
+  });
+  return picked?.value;
 }
 
-function handleResult(result: TablefmtResult): string | undefined {
-  if (result.ok) {
-    return result.output;
-  }
-  switch (result.kind) {
-    case 'not-found':
-      void vscode.window.showErrorMessage(
-        `tablefmt: binary not found at "${result.executablePath}". Install tablefmt and add it to PATH, or set tablefmt.executablePath in settings.`
-      );
-      break;
-    case 'nonzero':
-      void vscode.window.showErrorMessage(
-        `tablefmt: exited with code ${result.exitCode}: ${result.stderr}`
-      );
-      break;
-    case 'spawn-error':
-      void vscode.window.showErrorMessage(`tablefmt: failed to run: ${result.message}`);
-      break;
-  }
-  return undefined;
+function showError(msg: string): void {
+  void vscode.window.showErrorMessage(`tablefmt: ${msg}`);
 }
 
-function handleEditResult(result: EditCommandResult): import('./tablefmt.js').EditResult | undefined {
-  if (result.ok) {
-    return result.result;
-  }
-  switch (result.kind) {
-    case 'not-found':
-      void vscode.window.showErrorMessage(
-        `tablefmt: binary not found at "${result.executablePath}". Install tablefmt and add it to PATH, or set tablefmt.executablePath in settings.`
-      );
-      break;
-    case 'error':
-    case 'spawn-error':
-      void vscode.window.showErrorMessage(`tablefmt: ${result.message}`);
-      break;
-  }
-  return undefined;
+// ─── Range helpers ────────────────────────────────────────────────────────────
+
+function lineRange(doc: vscode.TextDocument, startLine: number, endLine: number): vscode.Range {
+  const end = doc.lineAt(endLine).range.end;
+  return new vscode.Range(startLine, 0, endLine, end.character);
 }
 
-async function applyEditResult(
+interface TextWithRange {
+  text: string;
+  range: vscode.Range;
+}
+
+function selectionOrNull(editor: vscode.TextEditor): TextWithRange | null {
+  if (!editor.selection.isEmpty) {
+    return { text: editor.document.getText(editor.selection), range: editor.selection };
+  }
+  return null;
+}
+
+function resolveForFormat(editor: vscode.TextEditor): TextWithRange | null {
+  const sel = selectionOrNull(editor);
+  if (sel) return sel;
+
+  const allLines = editor.document.getText().split('\n');
+  const cursorLine = editor.selection.active.line;
+  try {
+    const [start, end] = findTableBounds(allLines, cursorLine);
+    const range = lineRange(editor.document, start, end);
+    return { text: editor.document.getText(range), range };
+  } catch (e) {
+    showError(e instanceof Error ? e.message : String(e));
+    return null;
+  }
+}
+
+function resolveForData(editor: vscode.TextEditor): TextWithRange | null {
+  const sel = selectionOrNull(editor);
+  if (sel) return sel;
+
+  const allLines = editor.document.getText().split('\n');
+  const cursorLine = editor.selection.active.line;
+  const bounds = findDataLineBounds(allLines, cursorLine);
+  if (!bounds) {
+    showError('No pipe-delimited data found around cursor. Select the data rows first.');
+    return null;
+  }
+  const [start, end] = bounds;
+  const range = lineRange(editor.document, start, end);
+  return { text: editor.document.getText(range), range };
+}
+
+// ─── Core operation helpers ───────────────────────────────────────────────────
+
+function formatData(text: string, style: OutputStyle): string | null {
+  try {
+    const delimiter = detectDelimiter(text);
+    const data = parseDelimited(text, delimiter);
+    populateColumnMeta(data);
+    return render(data, style);
+  } catch (e) {
+    showError(e instanceof Error ? e.message : String(e));
+    return null;
+  }
+}
+
+function formatTable(text: string, targetStyle: OutputStyle | null): string | null {
+  try {
+    const [bareLines, meta] = preprocess(text);
+    const style = targetStyle ?? detectStyle(bareLines);
+    const data = parseTable(bareLines, style);
+    populateColumnMeta(data);
+    const rendered = render(data, style);
+    return postprocess(rendered, meta);
+  } catch (e) {
+    showError(e instanceof Error ? e.message : String(e));
+    return null;
+  }
+}
+
+async function applyOutput(
   editor: vscode.TextEditor,
-  result: import('./tablefmt.js').EditResult
+  range: vscode.Range,
+  output: string,
+  originalEndsWithNewline: boolean
 ): Promise<void> {
-  const endPos = editor.document.lineAt(result.endLine).range.end;
-  const range = new vscode.Range(result.startLine, 0, endPos.line, endPos.character);
-  await editor.edit((b) => b.replace(range, result.text));
+  const final = originalEndsWithNewline ? output : output.replace(/\n$/, '');
+  await editor.edit(b => b.replace(range, final));
 }
 
-function normalizeOutput(output: string, selectionEndsWithNewline: boolean): string {
-  return selectionEndsWithNewline ? output : output.replace(/\n$/, '');
-}
+// ─── Edit command pipeline (for add/remove column) ────────────────────────────
 
-const SOURCE_ITEMS: Array<{ label: string; description: string; value: SourceFormat }> = [
-  { label: 'CSV', description: 'Comma-separated values', value: 'csv' },
-  { label: 'TSV', description: 'Tab-separated values', value: 'tsv' },
-  { label: 'PSV', description: 'Pipe-separated values', value: 'psv' },
-  { label: 'JSON', description: 'JSON array of objects', value: 'json' },
-  { label: 'YAML', description: 'YAML sequence of mappings', value: 'yaml' },
-  { label: 'TOML', description: 'TOML array of tables', value: 'toml' },
-];
-
-const STYLE_ITEMS: Array<{ label: string; value: OutputStyle }> = [
-  { label: 'github', value: 'github' },
-  { label: 'psql', value: 'psql' },
-  { label: 'asciidoc', value: 'asciidoc' },
-  { label: 'jira', value: 'jira' },
-  { label: 'rst', value: 'rst' },
-  { label: 'rst-grid', value: 'rst-grid' },
-  { label: 'orgtbl', value: 'orgtbl' },
-  { label: 'dots', value: 'dots' },
-  { label: 'ascii', value: 'ascii' },
-  { label: 'modern', value: 'modern' },
-  { label: 'sharp', value: 'sharp' },
-  { label: 'extended', value: 'extended' },
-  { label: 'heavy-outline', value: 'heavy-outline' },
-];
-
-async function runFormatCommand(
-  style: OutputStyle | undefined,
-  source?: SourceFormat
-): Promise<void> {
-  const editor = vscode.window.activeTextEditor;
-  if (!editor) return;
-
-  const selectionText = getSelectionText(editor);
-  if (!selectionText) {
-    void vscode.window.showErrorMessage(
-      'tablefmt: No text selected. Select the data to format.'
-    );
+function runEditCommand(
+  editor: vscode.TextEditor,
+  op: (data: ReturnType<typeof parseTable>, colIdx: number) => ReturnType<typeof parseTable>
+): void {
+  const allLines = editor.document.getText().split('\n');
+  const cursor = editor.selection.active;
+  let start: number, end: number;
+  try {
+    [start, end] = findTableBounds(allLines, cursor.line);
+  } catch (e) {
+    showError(e instanceof Error ? e.message : String(e));
     return;
   }
 
-  if (source === undefined) {
-    const picked = await vscode.window.showQuickPick(SOURCE_ITEMS, {
-      placeHolder: 'Select input format',
-      title: 'tablefmt: Format Selection',
-    });
-    if (!picked) return;
-    source = picked.value;
-  }
+  const range = lineRange(editor.document, start, end);
+  const text = editor.document.getText(range);
+  const [bareLines, meta] = preprocess(text);
+  const style = detectStyle(bareLines);
 
-  if (style === undefined) {
-    const pickedStyle = await vscode.window.showQuickPick(STYLE_ITEMS, {
-      placeHolder: 'Select output style',
-      title: 'tablefmt: Format Selection',
-    });
-    if (!pickedStyle) return;
-    style = pickedStyle.value;
-  }
-
-  const cfg = getConfig();
-  const result = await formatSelection(selectionText, {
-    executablePath: cfg.executablePath,
-    source,
-    style,
-  });
-
-  const output = handleResult(result);
-  if (!output) return;
-
-  const finalOutput = normalizeOutput(output, selectionText.endsWith('\n'));
-  await editor.edit((b) => b.replace(editor.selection, finalOutput));
-}
-
-async function runFormatWithDelimiterCommand(style: OutputStyle): Promise<void> {
-  const editor = vscode.window.activeTextEditor;
-  if (!editor) return;
-
-  const selectionText = getSelectionText(editor);
-  if (!selectionText) {
-    void vscode.window.showErrorMessage(
-      'tablefmt: No text selected. Select the data to format.'
-    );
+  let data;
+  try {
+    data = parseTable(bareLines, style);
+  } catch (e) {
+    showError(e instanceof Error ? e.message : String(e));
     return;
   }
 
-  const delimiter = await vscode.window.showInputBox({
-    title: 'tablefmt: Format Selection',
-    prompt: 'Enter delimiter character',
-    placeHolder: 'e.g. ; or |',
-    validateInput: (v) => (v.length === 1 ? undefined : 'Enter a single character'),
-  });
-  if (delimiter === undefined) return;
+  const originalLine = allLines[cursor.line] ?? '';
+  const colIdx = findColumnAtCursor(originalLine, cursor.character);
 
-  const cfg = getConfig();
-  const result = await formatSelectionWithDelimiter(selectionText, {
-    executablePath: cfg.executablePath,
-    delimiter,
-    style,
-  });
+  let newData;
+  try {
+    newData = op(data, colIdx);
+  } catch (e) {
+    showError(e instanceof Error ? e.message : String(e));
+    return;
+  }
 
-  const output = handleResult(result);
-  if (!output) return;
-
-  const finalOutput = normalizeOutput(output, selectionText.endsWith('\n'));
-  await editor.edit((b) => b.replace(editor.selection, finalOutput));
+  populateColumnMeta(newData);
+  const rendered = render(newData, style);
+  const final = postprocess(rendered, meta);
+  void editor.edit(b => b.replace(range, final));
 }
+
+// ─── Extension activation ─────────────────────────────────────────────────────
 
 export function activate(context: vscode.ExtensionContext): void {
   context.subscriptions.push(
-    vscode.commands.registerCommand('tablefmt.formatPsv', () => {
-      return runFormatCommand(getConfig().defaultStyle, 'psv');
-    }),
-
-    vscode.commands.registerCommand('tablefmt.formatCsv', () => {
-      return runFormatCommand(getConfig().defaultStyle, 'csv');
-    }),
-
-    vscode.commands.registerCommand('tablefmt.formatTsv', () => {
-      return runFormatCommand(getConfig().defaultStyle, 'tsv');
-    }),
-
-    vscode.commands.registerCommand('tablefmt.formatCustomDelimiter', () => {
-      return runFormatWithDelimiterCommand(getConfig().defaultStyle);
-    }),
-
-    vscode.commands.registerCommand('tablefmt.formatWithStyle', () => {
-      return runFormatCommand(undefined);
-    }),
-
-    vscode.commands.registerCommand('tablefmt.prettify', async () => {
+    vscode.commands.registerCommand('tablefmt.dataToTable', async () => {
       const editor = vscode.window.activeTextEditor;
       if (!editor) return;
-
-      if (editor.document.isUntitled) {
-        void vscode.window.showErrorMessage(
-          'tablefmt: Save the file before prettifying a table.'
-        );
-        return;
-      }
-
-      const cfg = getConfig();
-      const line = editor.selection.start.line;
-      const filePath = editor.document.uri.fsPath;
-
-      const result = await editPrettify(cfg.executablePath, filePath, line);
-      const editResult = handleEditResult(result);
-      if (!editResult) return;
-
-      await applyEditResult(editor, editResult);
+      const resolved = resolveForData(editor);
+      if (!resolved) return;
+      const output = formatData(resolved.text, getDefaultStyle());
+      if (!output) return;
+      await applyOutput(editor, resolved.range, output, resolved.text.endsWith('\n'));
     }),
 
-    vscode.commands.registerCommand('tablefmt.addColumnBefore', async () => {
+    vscode.commands.registerCommand('tablefmt.dataToTableStyle', async () => {
       const editor = vscode.window.activeTextEditor;
       if (!editor) return;
-
-      if (editor.document.isUntitled) {
-        void vscode.window.showErrorMessage(
-          'tablefmt: Save the file before editing a table.'
-        );
-        return;
-      }
-
-      const cfg = getConfig();
-      const line = editor.selection.start.line;
-      const col = editor.selection.active.character;
-      const filePath = editor.document.uri.fsPath;
-
-      const result = await addColumnBefore(cfg.executablePath, filePath, line, col);
-      const editResult = handleEditResult(result);
-      if (!editResult) return;
-
-      await applyEditResult(editor, editResult);
+      const style = await pickStyle('tablefmt: Data to table with style');
+      if (!style) return;
+      const resolved = resolveForData(editor);
+      if (!resolved) return;
+      const output = formatData(resolved.text, style);
+      if (!output) return;
+      await applyOutput(editor, resolved.range, output, resolved.text.endsWith('\n'));
     }),
 
-    vscode.commands.registerCommand('tablefmt.addColumnAfter', async () => {
+    vscode.commands.registerCommand('tablefmt.formatTable', async () => {
       const editor = vscode.window.activeTextEditor;
       if (!editor) return;
-
-      if (editor.document.isUntitled) {
-        void vscode.window.showErrorMessage(
-          'tablefmt: Save the file before editing a table.'
-        );
-        return;
-      }
-
-      const cfg = getConfig();
-      const line = editor.selection.start.line;
-      const col = editor.selection.active.character;
-      const filePath = editor.document.uri.fsPath;
-
-      const result = await addColumnAfter(cfg.executablePath, filePath, line, col);
-      const editResult = handleEditResult(result);
-      if (!editResult) return;
-
-      await applyEditResult(editor, editResult);
+      const resolved = resolveForFormat(editor);
+      if (!resolved) return;
+      const output = formatTable(resolved.text, null);
+      if (!output) return;
+      await applyOutput(editor, resolved.range, output, resolved.text.endsWith('\n'));
     }),
 
-    vscode.commands.registerCommand('tablefmt.removeColumn', async () => {
+    vscode.commands.registerCommand('tablefmt.formatTableToStyle', async () => {
       const editor = vscode.window.activeTextEditor;
       if (!editor) return;
+      const style = await pickStyle('tablefmt: Format table to style');
+      if (!style) return;
+      const resolved = resolveForFormat(editor);
+      if (!resolved) return;
+      const output = formatTable(resolved.text, style);
+      if (!output) return;
+      await applyOutput(editor, resolved.range, output, resolved.text.endsWith('\n'));
+    }),
 
-      if (editor.document.isUntitled) {
-        void vscode.window.showErrorMessage(
-          'tablefmt: Save the file before editing a table.'
-        );
-        return;
-      }
+    vscode.commands.registerCommand('tablefmt.addColumnBefore', () => {
+      const editor = vscode.window.activeTextEditor;
+      if (!editor) return;
+      runEditCommand(editor, (data, colIdx) => addColumn(data, colIdx));
+    }),
 
-      const cfg = getConfig();
-      const line = editor.selection.start.line;
-      const col = editor.selection.active.character;
-      const filePath = editor.document.uri.fsPath;
+    vscode.commands.registerCommand('tablefmt.addColumnAfter', () => {
+      const editor = vscode.window.activeTextEditor;
+      if (!editor) return;
+      runEditCommand(editor, (data, colIdx) => addColumn(data, colIdx + 1));
+    }),
 
-      const result = await removeColumn(cfg.executablePath, filePath, line, col);
-      const editResult = handleEditResult(result);
-      if (!editResult) return;
-
-      await applyEditResult(editor, editResult);
+    vscode.commands.registerCommand('tablefmt.removeColumn', () => {
+      const editor = vscode.window.activeTextEditor;
+      if (!editor) return;
+      runEditCommand(editor, (data, colIdx) => removeColumn(data, colIdx));
     })
   );
 }

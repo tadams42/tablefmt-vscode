@@ -1,12 +1,6 @@
 # tablefmt for VS Code
 
-Format and prettify tables in your editor using the [tablefmt](https://github.com/tadams42/tablefmt) CLI.
-
-## Requirements
-
-`tablefmt` must be available on PATH. Install it from [GitHub releases](https://github.com/tadams42/tablefmt/releases) or via `cargo install tablefmt`.
-
-If VS Code is launched from a desktop shortcut and cannot see your shell PATH, set an absolute path via the `tablefmt.executablePath` setting.
+Format and prettify tables in your editor.
 
 ## Commands
 
@@ -14,20 +8,167 @@ All commands are available in the Command Palette (`Ctrl+Shift+P` / `Cmd+Shift+P
 
 | Command | Description |
 |---|---|
-| `tablefmt: Format selection as table` | Convert selected CSV/TSV/PSV/JSON/YAML/TOML data into a formatted table using `defaultStyle`. Prompts for input format. |
-| `tablefmt: Format selection as table with style` | Same as above, but also prompts for output style interactively. |
-| `tablefmt: Prettify table at cursor (re-align columns)` | Re-align columns of the table at the cursor (or at the start of the selection). |
+| `tablefmt: Data to table` | Auto-detect delimiter (`\|`, `;`, `,`, tab) in selected text (or lines around cursor), parse as tabular data, format with `defaultStyle`. |
+| `tablefmt: Data to table with style` | Prompts for output style, then same as above. |
+| `tablefmt: Format table` | Detect existing table style, re-align columns in place. Works on selection or finds the table around the cursor automatically. |
+| `tablefmt: Format table to style` | Prompts for output style, then re-renders the table in the new style. |
 | `tablefmt: Add column before cursor` | Insert a blank column before the column at the cursor position. |
 | `tablefmt: Add column after cursor` | Insert a blank column after the column at the cursor position. |
 | `tablefmt: Remove column at cursor` | Remove the column at the cursor position. |
 
-**Tip:** For the cursor-based commands, if you have text selected the first line of the selection is used to locate the table — useful when your cursor lands outside the table after selecting.
+**With selection:** the selected text is used as input.
+
+**Without selection:** the extension searches for table content around the current cursor line automatically. "Data to table" looks for contiguous lines containing `|`; "Format table" detects any supported style.
 
 ## Settings
 
 | Setting | Default | Description |
 |---|---|---|
-| `tablefmt.executablePath` | `"tablefmt"` | Path to the `tablefmt` binary |
-| `tablefmt.defaultStyle` | `"github"` | Output table style used by the Format command |
+| `tablefmt.defaultStyle` | `"github"` | Output style used by "Data to table" |
 
-Available styles: `github`, `psql`, `asciidoc`, `jira`, `rst`, `rst-grid`, `orgtbl`, `dots`, `ascii`, `modern`, `sharp`, `extended`, `heavy-outline`.
+Available styles: `github`, `psql`, `asciidoc`, `jira`, `rst`, `rst-grid`, `orgtbl`, `ascii`, `modern`, `sharp`, `extended`, `heavy-outline`.
+
+## Output styles
+
+### `github` — GitHub-flavored Markdown (default)
+
+```
+| Month |  Revenue | Units |
+|-------|----------|-------|
+| Jan   | 12500.50 |   342 |
+| Feb   | 13200.75 |   389 |
+| Mar   | 15800.25 |   421 |
+```
+
+### `psql` — PostgreSQL `\pset border 2` style
+
+```
+ Month |  Revenue | Units
+-------+----------+-------
+ Jan   | 12500.50 |   342
+ Feb   | 13200.75 |   389
+ Mar   | 15800.25 |   421
+```
+
+### `asciidoc` — AsciiDoc table
+
+```
+[cols="<5,>8,>5",options="header"]
+|====
+| Month | Revenue  | Units
+| Jan   | 12500.50 |   342
+| Feb   | 13200.75 |   389
+| Mar   | 15800.25 |   421
+|====
+```
+
+### `jira` — Atlassian Jira wiki table
+
+```
+|| Month || Revenue  || Units ||
+| Jan   | 12500.50 |   342 |
+| Feb   | 13200.75 |   389 |
+| Mar   | 15800.25 |   421 |
+```
+
+### `rst` — reStructuredText simple table
+
+```
+======= ========== =======
+ Month    Revenue   Units
+======= ========== =======
+ Jan     12500.50     342
+ Feb     13200.75     389
+ Mar     15800.25     421
+======= ========== =======
+```
+
+### `rst-grid` — reStructuredText grid table
+
+```
++-------+----------+-------+
+| Month |  Revenue | Units |
++=======+==========+=======+
+| Jan   | 12500.50 |   342 |
++-------+----------+-------+
+| Feb   | 13200.75 |   389 |
++-------+----------+-------+
+| Mar   | 15800.25 |   421 |
++-------+----------+-------+
+```
+
+### `orgtbl` — Emacs Org-mode table
+
+```
+| Month |  Revenue | Units |
+|-------+----------+-------|
+| Jan   | 12500.50 |   342 |
+| Feb   | 13200.75 |   389 |
+| Mar   | 15800.25 |   421 |
+```
+
+### `ascii` — Plain ASCII
+
+```
++-------+----------+-------+
+| Month |  Revenue | Units |
++-------+----------+-------+
+| Jan   | 12500.50 |   342 |
++-------+----------+-------+
+| Feb   | 13200.75 |   389 |
++-------+----------+-------+
+| Mar   | 15800.25 |   421 |
++-------+----------+-------+
+```
+
+### `modern` — Unicode box-drawing (thin lines, row separators)
+
+```
+┌───────┬──────────┬───────┐
+│ Month │  Revenue │ Units │
+├───────┼──────────┼───────┤
+│ Jan   │ 12500.50 │   342 │
+├───────┼──────────┼───────┤
+│ Feb   │ 13200.75 │   389 │
+├───────┼──────────┼───────┤
+│ Mar   │ 15800.25 │   421 │
+└───────┴──────────┴───────┘
+```
+
+### `sharp` — Unicode box-drawing (thin lines, no row separators)
+
+```
+┌───────┬──────────┬───────┐
+│ Month │  Revenue │ Units │
+├───────┼──────────┼───────┤
+│ Jan   │ 12500.50 │   342 │
+│ Feb   │ 13200.75 │   389 │
+│ Mar   │ 15800.25 │   421 │
+└───────┴──────────┴───────┘
+```
+
+### `extended` — Unicode box-drawing (double lines)
+
+```
+╔═══════╦══════════╦═══════╗
+║ Month ║  Revenue ║ Units ║
+╠═══════╬══════════╬═══════╣
+║ Jan   ║ 12500.50 ║   342 ║
+╠═══════╬══════════╬═══════╣
+║ Feb   ║ 13200.75 ║   389 ║
+╠═══════╬══════════╬═══════╣
+║ Mar   ║ 15800.25 ║   421 ║
+╚═══════╩══════════╩═══════╝
+```
+
+### `heavy-outline` — Unicode box-drawing (heavy outer border)
+
+```
+┏━━━━━━━┳━━━━━━━━━━┳━━━━━━━┓
+┃ Month ┃  Revenue ┃ Units ┃
+┣━━━━━━━╋━━━━━━━━━━╋━━━━━━━┫
+┃ Jan   ┃ 12500.50 ┃   342 ┃
+┃ Feb   ┃ 13200.75 ┃   389 ┃
+┃ Mar   ┃ 15800.25 ┃   421 ┃
+┗━━━━━━━┻━━━━━━━━━━┻━━━━━━━┛
+```
