@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.2.1]
+
+- Improve VS Code Marketplace visibility: better display name, description, and keywords
+- Add extension icon (Fluent UI `table_simple`, white on blue)
+- Add dark gallery banner
+
 ## [0.2.0]
 
 Complete rewrite — no external binary required.
