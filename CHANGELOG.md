@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.2.2]
+
+- cleanup, automation
+
 ## [0.2.1]
 
 - Improve VS Code Marketplace visibility: better display name, description, and keywords
