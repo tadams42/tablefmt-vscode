@@ -1,7 +1,26 @@
 {
   "name": "tadams42-tablefmt",
-  "displayName": "tablefmt-vscode",
-  "description": "Format tesxt and data as tables",
+  "displayName": "tablefmt - Table formatter",
+  "description": "Format text and data as tables in Markdown, RST, AsciiDoc, Jira, Org-mode and more",
+  "keywords": [
+    "table",
+    "markdown",
+    "formatter",
+    "csv",
+    "tsv",
+    "ascii-table",
+    "rst",
+    "asciidoc",
+    "jira",
+    "org-mode",
+    "pipe-table",
+    "unicode"
+  ],
+  "icon": "images/icon.png",
+  "galleryBanner": {
+    "color": "#1e1e2e",
+    "theme": "dark"
+  },
   "version": "0.2.0",
   "publisher": "tadams42",
   "license": "MIT",
