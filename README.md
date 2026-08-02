@@ -2,7 +2,7 @@
 
 Convert delimited data (CSV, TSV, pipe-separated) into formatted tables, re-align existing ones, and convert between 12 styles — Markdown, RST, AsciiDoc, Jira, Org-mode, plain ASCII, and Unicode box-drawing.
 
-<video src="https://github.com/user-attachments/assets/4c553478-f818-492f-8fc6-5779ac6c5f7b" autoplay loop muted playsinline width="100%">
+<video src="https://github.com/user-attachments/assets/d4f49925-fe5f-4a3e-8335-22fbffeeb62c" autoplay loop muted playsinline width="100%">
 </video>
 
 ## Commands
