@@ -4,6 +4,12 @@
 
 - Fix: blank cells no longer collapse — `|  | c2 | c3 |` keeps its empty first
   column instead of silently dropping it
+- Fix: the `github` (markdown) delimiter row is now padded like a content row
+  (`| --- | --- |` instead of `|-----|-----|`)
+- Fix: markdown alignment markers (`:--`, `--:`, `:-:`) are parsed and preserved;
+  the declared alignment overrides numeric detection when padding cells, and
+  carries over to the other output styles (including AsciiDoc `^` for centred)
+- Column add/remove now shifts the per-column alignments along with the cells
 
 ## [0.2.2]
 

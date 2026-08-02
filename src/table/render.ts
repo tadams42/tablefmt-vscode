@@ -1,8 +1,13 @@
-import type { TableData } from './model.js';
+import { effectiveAlign } from './model.js';
+import type { Align, TableData } from './model.js';
 import type { OutputStyle } from './types.js';
 
 function charLen(s: string): number {
   return [...s].length;
+}
+
+function alignsOf(data: TableData): Align[] {
+  return data.columnMeta.map(effectiveAlign);
 }
 
 export function colWidths(data: TableData): number[] {
@@ -15,9 +20,13 @@ export function colWidths(data: TableData): number[] {
   });
 }
 
-function padCell(cell: string, width: number, rightAlign: boolean): string {
-  const pad = width - charLen(cell);
-  if (rightAlign) return ' '.repeat(pad) + cell;
+function padCell(cell: string, width: number, align: Align): string {
+  const pad = Math.max(0, width - charLen(cell));
+  if (align === 'right') return ' '.repeat(pad) + cell;
+  if (align === 'center') {
+    const left = Math.floor(pad / 2);
+    return ' '.repeat(left) + cell + ' '.repeat(pad - left);
+  }
   return cell + ' '.repeat(pad);
 }
 
@@ -39,15 +48,15 @@ function makeBorderRow(widths: number[], L: string, H: string, J: string, R: str
 function makeContentRow(
   cells: string[], widths: number[],
   L: string, Sep: string, R: string,
-  rightAligns: boolean[]
+  aligns: Align[]
 ): string {
-  const parts = cells.map((c, i) => ' ' + padCell(c, widths[i] ?? 0, rightAligns[i] ?? false) + ' ');
+  const parts = cells.map((c, i) => ' ' + padCell(c, widths[i] ?? 0, aligns[i] ?? 'left') + ' ');
   return L + parts.join(Sep) + R;
 }
 
 function renderGrid(data: TableData, spec: GridSpec): string {
   const widths = colWidths(data);
-  const aligns = data.columnMeta.map(m => m.isNumeric);
+  const aligns = alignsOf(data);
   const lines: string[] = [];
 
   if (spec.topL) lines.push(makeBorderRow(widths, spec.topL, spec.topH, spec.topJ, spec.topR));
@@ -139,37 +148,81 @@ const HEAVY_OUTLINE: GridSpec = {
 
 // ─── Custom renderers ─────────────────────────────────────────────────────────
 
+// Narrowest cell that can still carry the alignment markers for `align`.
+function minMarkerWidth(align: Align): number {
+  if (align === 'center') return 3;
+  if (align === 'left' || align === 'right') return 2;
+  return 1;
+}
+
+function alignMarker(align: Align, width: number): string {
+  const dashes = (n: number) => '-'.repeat(Math.max(1, n));
+  switch (align) {
+    case 'left':   return ':' + dashes(width - 1);
+    case 'right':  return dashes(width - 1) + ':';
+    case 'center': return ':' + dashes(width - 2) + ':';
+    default:       return dashes(width);
+  }
+}
+
+/**
+ * GitHub-flavoured markdown. The delimiter row is padded like a content row
+ * (`| --- |`, not `|-----|`) and carries the `:` alignment markers declared by
+ * the source table. Alignment inferred from numeric content is applied by
+ * padding only — it does not invent markers the author did not write.
+ */
+function renderMarkdown(data: TableData): string {
+  const markerAligns = data.columnMeta.map(m => m.align);
+  const padAligns = alignsOf(data);
+  const widths = colWidths(data).map((w, i) =>
+    Math.max(w, minMarkerWidth(markerAligns[i] ?? 'default'))
+  );
+
+  const lines = [makeContentRow(data.headers, widths, '|', '|', '|', padAligns)];
+  lines.push(
+    '|' + widths.map((w, i) => ' ' + alignMarker(markerAligns[i] ?? 'default', w) + ' ').join('|') + '|'
+  );
+  for (const row of data.rows) {
+    lines.push(makeContentRow(row, widths, '|', '|', '|', padAligns));
+  }
+  return lines.join('\n');
+}
+
 function renderJira(data: TableData): string {
   const widths = colWidths(data);
-  const aligns = data.columnMeta.map(m => m.isNumeric);
+  const aligns = alignsOf(data);
   const lines: string[] = [];
 
-  const headerCells = data.headers.map((h, i) => ' ' + padCell(h, widths[i] ?? 0, false) + ' ');
+  const headerCells = data.headers.map((h, i) => ' ' + padCell(h, widths[i] ?? 0, 'left') + ' ');
   lines.push('||' + headerCells.join('||') + '||');
 
   for (const row of data.rows) {
-    const cells = row.map((c, i) => ' ' + padCell(c, widths[i] ?? 0, aligns[i] ?? false) + ' ');
+    const cells = row.map((c, i) => ' ' + padCell(c, widths[i] ?? 0, aligns[i] ?? 'left') + ' ');
     lines.push('|' + cells.join('|') + '|');
   }
 
   return lines.join('\n');
 }
 
+const ASCIIDOC_COL_ALIGN: Record<Align, string> = {
+  default: '<', left: '<', center: '^', right: '>',
+};
+
 function renderAsciidoc(data: TableData): string {
   const widths = colWidths(data);
-  const aligns = data.columnMeta.map(m => m.isNumeric);
+  const aligns = alignsOf(data);
   const lines: string[] = [];
 
-  const colsSpec = widths.map((w, i) => (aligns[i] ? '>' : '<') + w).join(',');
+  const colsSpec = widths.map((w, i) => ASCIIDOC_COL_ALIGN[aligns[i] ?? 'left'] + w).join(',');
   lines.push(`[cols="${colsSpec}",options="header"]`);
   lines.push('|====');
 
-  const renderRow = (cells: string[], rowAligns: boolean[]) => {
-    const parts = cells.map((c, i) => '| ' + padCell(c, widths[i] ?? 0, rowAligns[i] ?? false));
+  const renderRow = (cells: string[], rowAligns: Align[]) => {
+    const parts = cells.map((c, i) => '| ' + padCell(c, widths[i] ?? 0, rowAligns[i] ?? 'left'));
     lines.push(parts.join(' '));
   };
 
-  renderRow(data.headers, data.headers.map(() => false));
+  renderRow(data.headers, data.headers.map((): Align => 'left'));
   for (const row of data.rows) renderRow(row, aligns);
 
   lines.push('|====');
@@ -178,11 +231,11 @@ function renderAsciidoc(data: TableData): string {
 
 function renderRst(data: TableData): string {
   const widths = colWidths(data);
-  const aligns = data.columnMeta.map(m => m.isNumeric);
+  const aligns = alignsOf(data);
 
   const sepLine = widths.map(w => '='.repeat(w + 2)).join(' ');
-  const contentRow = (cells: string[], rowAligns: boolean[]) =>
-    cells.map((c, i) => ' ' + padCell(c, widths[i] ?? 0, rowAligns[i] ?? false) + ' ').join(' ');
+  const contentRow = (cells: string[], rowAligns: Align[]) =>
+    cells.map((c, i) => ' ' + padCell(c, widths[i] ?? 0, rowAligns[i] ?? 'left') + ' ').join(' ');
 
   const lines: string[] = [
     sepLine,
@@ -198,7 +251,7 @@ function renderRst(data: TableData): string {
 
 export function render(data: TableData, style: OutputStyle): string {
   switch (style) {
-    case 'github':       return renderGrid(data, GITHUB);
+    case 'github':       return renderMarkdown(data);
     case 'psql':         return renderGrid(data, PSQL);
     case 'orgtbl':       return renderGrid(data, ORGTBL);
     case 'ascii':        return renderGrid(data, ASCII);

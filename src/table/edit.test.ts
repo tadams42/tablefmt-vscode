@@ -41,6 +41,12 @@ const makeTable = () => makeTableData(
   [['1', '2', '3'], ['4', '5', '6']]
 );
 
+const makeAlignedTable = () => makeTableData(
+  ['a', 'b', 'c'],
+  [['1', '2', '3']],
+  ['left', 'center', 'right']
+);
+
 describe('addColumn', () => {
   it('at start', () => {
     const t = addColumn(makeTable(), 0);
@@ -65,6 +71,11 @@ describe('addColumn', () => {
     expect(t.headers.length).toBe(4);
     expect(t.headers[t.headers.length - 1]).toBe('');
   });
+
+  it('shifts alignments with the inserted column', () => {
+    const t = addColumn(makeAlignedTable(), 1);
+    expect(t.columnMeta.map(m => m.align)).toEqual(['left', 'default', 'center', 'right']);
+  });
 });
 
 describe('removeColumn', () => {
@@ -83,5 +94,10 @@ describe('removeColumn', () => {
   it('out of range throws', () => {
     expect(() => removeColumn(makeTable(), 3)).toThrow();
     expect(() => removeColumn(makeTable(), 99)).toThrow();
+  });
+
+  it('keeps the remaining columns aligned as before', () => {
+    const t = removeColumn(makeAlignedTable(), 1);
+    expect(t.columnMeta.map(m => m.align)).toEqual(['left', 'right']);
   });
 });

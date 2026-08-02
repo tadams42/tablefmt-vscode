@@ -30,10 +30,64 @@ describe('render github', () => {
   it('golden output', () => {
     expect(render(salesData(), 'github')).toBe(
       '| Month |  Revenue | Units |\n' +
-      '|-------|----------|-------|\n' +
+      '| ----- | -------- | ----- |\n' +
       '| Jan   | 12500.50 |   342 |\n' +
       '| Feb   | 13200.75 |   389 |\n' +
       '| Mar   | 15800.25 |   421 |'
+    );
+  });
+
+  it('delimiter row is padded like a content row', () => {
+    expect(render(makeTableData(['c1', 'c2', 'c3'], [['v1', 'v2', 'v3']]), 'github')).toBe(
+      '| c1 | c2 | c3 |\n' +
+      '| -- | -- | -- |\n' +
+      '| v1 | v2 | v3 |'
+    );
+  });
+
+  it('emits alignment markers', () => {
+    const data = makeTableData(
+      ['aaaaa', 'bbbbb', 'ccccc'],
+      [['v1', 'v2', '42.24']],
+      ['left', 'center', 'right']
+    );
+    expect(render(data, 'github')).toBe(
+      '| aaaaa | bbbbb | ccccc |\n' +
+      '| :---- | :---: | ----: |\n' +
+      '| v1    |  v2   | 42.24 |'
+    );
+  });
+
+  it('widens narrow columns to fit their markers', () => {
+    const data = makeTableData(['a', 'b'], [['1', '2']], ['right', 'center']);
+    expect(render(data, 'github')).toBe(
+      '|  a |  b  |\n' +
+      '| -: | :-: |\n' +
+      '|  1 |  2  |'
+    );
+  });
+
+  it('explicit left alignment beats numeric detection', () => {
+    const data = makeTableData(['value'], [['1'], ['22']], ['left']);
+    const col = data.columnMeta[0];
+    if (col) col.isNumeric = true;
+    expect(render(data, 'github')).toBe(
+      '| value |\n' +
+      '| :---- |\n' +
+      '| 1     |\n' +
+      '| 22    |'
+    );
+  });
+
+  it('numeric detection does not invent markers', () => {
+    const data = makeTableData(['n'], [['1'], ['22']]);
+    const col = data.columnMeta[0];
+    if (col) col.isNumeric = true;
+    expect(render(data, 'github')).toBe(
+      '|  n |\n' +
+      '| -- |\n' +
+      '|  1 |\n' +
+      '| 22 |'
     );
   });
 });

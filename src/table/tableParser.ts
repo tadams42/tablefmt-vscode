@@ -1,5 +1,5 @@
 import { makeTableData } from './model.js';
-import type { TableData } from './model.js';
+import type { Align, TableData } from './model.js';
 import type { OutputStyle } from './types.js';
 
 // Matches structural-only lines: spaces, dashes, equals, plus, pipe, middle-dot, box-drawing U+2500–U+257F
@@ -40,6 +40,31 @@ function splitCells(line: string, sep: string): string[] {
   return s.split(actual).map(c => c.trim());
 }
 
+// Markdown delimiter cell: `---`, `:--`, `--:` or `:-:`
+const ALIGN_CELL_RE = /^:?-+:?$/;
+
+/**
+ * A markdown alignment row (`| :-- | --: |`). Rows made only of dashes are already
+ * caught by `isBorderLine`; this exists for the ones carrying `:` markers, which
+ * must be recognised as structure rather than data.
+ */
+export function isAlignmentRow(line: string, sep: string): boolean {
+  if (line.trim() === '') return false;
+  const cells = splitCells(line, sep);
+  return cells.length > 0 && cells.every(c => ALIGN_CELL_RE.test(c));
+}
+
+function parseAligns(line: string, sep: string): Align[] {
+  return splitCells(line, sep).map(cell => {
+    const left = cell.startsWith(':');
+    const right = cell.endsWith(':');
+    if (left && right) return 'center';
+    if (right) return 'right';
+    if (left) return 'left';
+    return 'default';
+  });
+}
+
 function parsePipeTable(lines: string[]): TableData {
   const dataLines = lines.filter(l => l.trim() !== '' && !isBorderLine(l));
   if (dataLines.length === 0) throw new Error('no data rows found in table');
@@ -49,14 +74,22 @@ function parsePipeTable(lines: string[]): TableData {
   const headers = splitCells(firstLine, sep);
   if (headers.length === 0) throw new Error('table header row is empty');
 
+  let rest = dataLines.slice(1);
+  let aligns: Align[] | undefined;
+  const afterHeader = rest[0];
+  if (afterHeader !== undefined && isAlignmentRow(afterHeader, sep)) {
+    aligns = parseAligns(afterHeader, sep);
+    rest = rest.slice(1);
+  }
+
   const nCols = headers.length;
-  const rows = dataLines.slice(1).map(line => {
+  const rows = rest.map(line => {
     const cells = splitCells(line, sep);
     while (cells.length < nCols) cells.push('');
     return cells.slice(0, nCols) as string[];
   });
 
-  return makeTableData(headers, rows);
+  return makeTableData(headers, rows, aligns);
 }
 
 function parseRstTable(lines: string[]): TableData {

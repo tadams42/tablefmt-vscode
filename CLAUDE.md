@@ -36,17 +36,17 @@ The extension has no external binary dependency. All table logic is implemented 
 
 **`src/table/types.ts`** — `OutputStyle` union type (12 styles) and `ALL_STYLES` array.
 
-**`src/table/model.ts`** — `TableData` and `ColumnMeta` interfaces; `makeTableData` factory.
+**`src/table/model.ts`** — `TableData` and `ColumnMeta` interfaces; `Align` union (`default`/`left`/`center`/`right`); `makeTableData` factory and `effectiveAlign` (explicit alignment wins over numeric detection).
 
 **`src/table/numeric.ts`** — `populateColumnMeta`: detects numeric columns (all non-empty cells pass `Number.isFinite`) and sets `isNumeric` on each `ColumnMeta`.
 
 **`src/table/prettify.ts`** — `preprocess` / `postprocess` / `bareLine`: strips comment prefixes (`///`, `//`, `#`, `*`) before formatting and restores them after. Ported from `prettify.rs`.
 
-**`src/table/tableParser.ts`** — `detectStyle` (12-step cascade) and `parseTable`. Handles pipe-style tables (all styles except `rst`), RST simple tables, and AsciiDoc `[cols=...]` attribute lines.
+**`src/table/tableParser.ts`** — `detectStyle` (12-step cascade), `parseTable`, `isAlignmentRow`. Handles pipe-style tables (all styles except `rst`), RST simple tables, and AsciiDoc `[cols=...]` attribute lines. `splitCells` drops only the framing separators, so interior/leading/trailing empty cells survive; markdown delimiter rows carrying `:` markers are recognised as structure and their alignments stored on `ColumnMeta`.
 
 **`src/table/dataParser.ts`** — `detectDelimiter` (counts `|`, `;`, `,`, tab; returns highest) and `parseDelimited` for raw delimited data.
 
-**`src/table/render.ts`** — `render(data, style)`: all 12 style renderers. Nine styles use a generic `GridSpec` parameterized renderer; `jira`, `asciidoc`, and `rst` have custom renderers. Column widths use `[...str].length` for Unicode correctness. Numeric columns are right-aligned in both header and data rows.
+**`src/table/render.ts`** — `render(data, style)`: all 12 style renderers. Eight styles use a generic `GridSpec` parameterized renderer; `github`, `jira`, `asciidoc`, and `rst` have custom renderers. Column widths use `[...str].length` for Unicode correctness. Numeric columns are right-aligned in both header and data rows unless the source declared an explicit alignment. The `github` renderer pads its delimiter row like a content row and emits `:` markers only for alignments the author actually wrote — numeric detection affects padding, not markers.
 
 **`src/table/locate.ts`** — `findTableBounds` and `findDataLineBounds`: cursor-based table and data region detection when no selection is active.
 

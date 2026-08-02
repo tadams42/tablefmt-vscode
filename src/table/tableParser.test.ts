@@ -1,5 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { isBorderLine, detectSeparator, detectStyle, parseTable } from './tableParser.js';
+import { isBorderLine, isAlignmentRow, detectSeparator, detectStyle, parseTable } from './tableParser.js';
+import { populateColumnMeta } from './numeric.js';
+import { render } from './render.js';
 
 const lines = (s: string) => s.split('\n');
 
@@ -59,6 +61,52 @@ describe('parseTable - github', () => {
   it('keeps blank interior and trailing cells', () => {
     const data = parseTable(lines('| a | b | c |\n|---|---|---|\n| 1 |  |  |'), 'github');
     expect(data.rows[0]).toEqual(['1', '', '']);
+  });
+
+  it('reads alignment markers from the delimiter row', () => {
+    const data = parseTable(lines('| a | b | c | d |\n| - | :- | -: | :-: |\n| 1 | 2 | 3 | 4 |'), 'github');
+    expect(data.headers).toEqual(['a', 'b', 'c', 'd']);
+    expect(data.columnMeta.map(m => m.align)).toEqual(['default', 'left', 'right', 'center']);
+    expect(data.rows).toEqual([['1', '2', '3', '4']]);
+  });
+});
+
+describe('isAlignmentRow', () => {
+  it('accepts colon markers', () => expect(isAlignmentRow('| - | - | -: |', '|')).toBe(true));
+  it('accepts all four marker forms', () => expect(isAlignmentRow('| --- | :-- | --: | :-: |', '|')).toBe(true));
+  it('rejects data', () => expect(isAlignmentRow('| a | -: |', '|')).toBe(false));
+  it('rejects bare colons', () => expect(isAlignmentRow('| : | : |', '|')).toBe(false));
+  it('rejects empty line', () => expect(isAlignmentRow('', '|')).toBe(false));
+});
+
+describe('github round-trip', () => {
+  const format = (text: string) => {
+    const src = lines(text);
+    const data = parseTable(src, detectStyle(src));
+    populateColumnMeta(data);
+    return render(data, 'github');
+  };
+
+  it('preserves alignment and is idempotent', () => {
+    const once = format('| aaaaa | bbbbb | ccccc |\n| - | - | -: |\n| v1 | v2 | 42.24 |');
+    expect(once).toBe(
+      '| aaaaa | bbbbb | ccccc |\n' +
+      '| ----- | ----- | ----: |\n' +
+      '| v1    | v2    | 42.24 |'
+    );
+    expect(format(once)).toBe(once);
+  });
+
+  it('is idempotent for a plain table', () => {
+    const once = format('| c1 | c2 | c3 |\n| v1 | v2 | v3 |');
+    expect(once).toBe('| c1 | c2 | c3 |\n| -- | -- | -- |\n| v1 | v2 | v3 |');
+    expect(format(once)).toBe(once);
+  });
+
+  it('is idempotent with a blank leading column', () => {
+    const once = format('|  | c2 | c3 |\n| v1 | v2 | v3 |');
+    expect(once).toBe('|    | c2 | c3 |\n| -- | -- | -- |\n| v1 | v2 | v3 |');
+    expect(format(once)).toBe(once);
   });
 });
 
