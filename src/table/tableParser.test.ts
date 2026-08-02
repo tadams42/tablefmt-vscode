@@ -49,6 +49,17 @@ describe('parseTable - github', () => {
     expect(data.headers).toEqual(['item', 'qty']);
     expect(data.rows[0]).toEqual(['spam', '42']);
   });
+
+  it('keeps a blank leading cell as its own column', () => {
+    const data = parseTable(lines('|  | c2 | c3 |\n| v1 | v2 | v3 |'), 'github');
+    expect(data.headers).toEqual(['', 'c2', 'c3']);
+    expect(data.rows[0]).toEqual(['v1', 'v2', 'v3']);
+  });
+
+  it('keeps blank interior and trailing cells', () => {
+    const data = parseTable(lines('| a | b | c |\n|---|---|---|\n| 1 |  |  |'), 'github');
+    expect(data.rows[0]).toEqual(['1', '', '']);
+  });
 });
 
 describe('parseTable - psql', () => {
@@ -62,6 +73,14 @@ describe('parseTable - psql', () => {
 describe('parseTable - jira', () => {
   it('double pipe header collapses to cells', () => {
     const data = parseTable(lines('|| item || qty ||\n| spam |  42 |'), 'jira');
+    expect(data.headers).toEqual(['item', 'qty']);
+    expect(data.rows[0]).toEqual(['spam', '42']);
+  });
+
+  // "Format table to style" parses with the *target* style, so a jira source is
+  // routinely handed to the parser under some other style name.
+  it('jira source parsed under a different target style', () => {
+    const data = parseTable(lines('|| item || qty ||\n| spam | 42 |'), 'github');
     expect(data.headers).toEqual(['item', 'qty']);
     expect(data.rows[0]).toEqual(['spam', '42']);
   });

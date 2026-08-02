@@ -1,5 +1,10 @@
 # Changelog
 
+## [Unreleased]
+
+- Fix: blank cells no longer collapse — `|  | c2 | c3 |` keeps its empty first
+  column instead of silently dropping it
+
 ## [0.2.2]
 
 - cleanup, automation

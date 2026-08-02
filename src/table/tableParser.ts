@@ -22,8 +22,22 @@ export function detectSeparator(line: string): string {
   return best || '|';
 }
 
+// A jira header row uses `||` as its cell separator while its data rows use a
+// single `|`. Detected per line rather than per style, because "format to style"
+// hands a jira source to the parser under the *target* style's name.
+function effectiveSeparator(trimmed: string, sep: string): string {
+  if (sep === '|' && trimmed.startsWith('||') && trimmed.endsWith('||')) return '||';
+  return sep;
+}
+
+// Splits a row into cells, dropping only the framing separators. Interior empty
+// cells are preserved — `|  | c2 |` is two columns, the first one blank.
 function splitCells(line: string, sep: string): string[] {
-  return line.split(sep).map(s => s.trim()).filter(s => s !== '');
+  let s = line.trim();
+  const actual = effectiveSeparator(s, sep);
+  if (s.startsWith(actual)) s = s.slice(actual.length);
+  if (s.endsWith(actual)) s = s.slice(0, s.length - actual.length);
+  return s.split(actual).map(c => c.trim());
 }
 
 function parsePipeTable(lines: string[]): TableData {
