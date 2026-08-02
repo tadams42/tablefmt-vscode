@@ -30,7 +30,7 @@ describe('render github', () => {
   it('golden output', () => {
     expect(render(salesData(), 'github')).toBe(
       '| Month |  Revenue | Units |\n' +
-      '| ----- | -------- | ----- |\n' +
+      '| ----- | -------: | ----: |\n' +
       '| Jan   | 12500.50 |   342 |\n' +
       '| Feb   | 13200.75 |   389 |\n' +
       '| Mar   | 15800.25 |   421 |'
@@ -79,15 +79,23 @@ describe('render github', () => {
     );
   });
 
-  it('numeric detection does not invent markers', () => {
+  it('numeric detection emits a right marker', () => {
     const data = makeTableData(['n'], [['1'], ['22']]);
     const col = data.columnMeta[0];
     if (col) col.isNumeric = true;
     expect(render(data, 'github')).toBe(
       '|  n |\n' +
-      '| -- |\n' +
+      '| -: |\n' +
       '|  1 |\n' +
       '| 22 |'
+    );
+  });
+
+  it('plain columns get no marker', () => {
+    expect(render(makeTableData(['n'], [['a']]), 'github')).toBe(
+      '| n |\n' +
+      '| - |\n' +
+      '| a |'
     );
   });
 });

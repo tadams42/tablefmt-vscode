@@ -103,6 +103,17 @@ describe('github round-trip', () => {
     expect(format(once)).toBe(once);
   });
 
+  it('marks a detected-numeric column right and stays idempotent', () => {
+    const once = format('| item | qty |\n| spam | 42 |\n| eggs | 451 |');
+    expect(once).toBe(
+      '| item | qty |\n' +
+      '| ---- | --: |\n' +
+      '| spam |  42 |\n' +
+      '| eggs | 451 |'
+    );
+    expect(format(once)).toBe(once);
+  });
+
   it('is idempotent with a blank leading column', () => {
     const once = format('|  | c2 | c3 |\n| v1 | v2 | v3 |');
     expect(once).toBe('|    | c2 | c3 |\n| -- | -- | -- |\n| v1 | v2 | v3 |');

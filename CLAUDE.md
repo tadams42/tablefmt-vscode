@@ -46,7 +46,7 @@ The extension has no external binary dependency. All table logic is implemented 
 
 **`src/table/dataParser.ts`** — `detectDelimiter` (counts `|`, `;`, `,`, tab; returns highest) and `parseDelimited` for raw delimited data.
 
-**`src/table/render.ts`** — `render(data, style)`: all 12 style renderers. Eight styles use a generic `GridSpec` parameterized renderer; `github`, `jira`, `asciidoc`, and `rst` have custom renderers. Column widths use `[...str].length` for Unicode correctness. Numeric columns are right-aligned in both header and data rows unless the source declared an explicit alignment. The `github` renderer pads its delimiter row like a content row and emits `:` markers only for alignments the author actually wrote — numeric detection affects padding, not markers.
+**`src/table/render.ts`** — `render(data, style)`: all 12 style renderers. Eight styles use a generic `GridSpec` parameterized renderer; `github`, `jira`, `asciidoc`, and `rst` have custom renderers. Column widths use `[...str].length` for Unicode correctness. Numeric columns are right-aligned in both header and data rows unless the source declared an explicit alignment. The `github` renderer pads its delimiter row like a content row and emits `:` markers for both declared alignments and the right-alignment inferred for numeric columns, so a rendered preview matches the padding in the raw text.
 
 **`src/table/locate.ts`** — `findTableBounds` and `findDataLineBounds`: cursor-based table and data region detection when no selection is active.
 

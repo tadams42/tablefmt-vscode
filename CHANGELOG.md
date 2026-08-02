@@ -9,6 +9,8 @@
 - Fix: markdown alignment markers (`:--`, `--:`, `:-:`) are parsed and preserved;
   the declared alignment overrides numeric detection when padding cells, and
   carries over to the other output styles (including AsciiDoc `^` for centred)
+- Numeric columns now get a `---:` marker in the markdown delimiter row, so a
+  rendered preview is right-aligned to match the raw text
 - Column add/remove now shifts the per-column alignments along with the cells
 
 ## [0.2.2]

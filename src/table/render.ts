@@ -1,5 +1,5 @@
 import { effectiveAlign } from './model.js';
-import type { Align, TableData } from './model.js';
+import type { Align, ColumnMeta, TableData } from './model.js';
 import type { OutputStyle } from './types.js';
 
 function charLen(s: string): number {
@@ -166,13 +166,24 @@ function alignMarker(align: Align, width: number): string {
 }
 
 /**
+ * Alignment to encode in the delimiter row. Unlike `effectiveAlign` this keeps
+ * `default` for plain columns, so an ordinary column stays `-----` rather than
+ * acquiring a redundant `:----`.
+ */
+function markerAlign(meta: ColumnMeta | undefined): Align {
+  if (!meta) return 'default';
+  if (meta.align !== 'default') return meta.align;
+  return meta.isNumeric ? 'right' : 'default';
+}
+
+/**
  * GitHub-flavoured markdown. The delimiter row is padded like a content row
- * (`| --- |`, not `|-----|`) and carries the `:` alignment markers declared by
- * the source table. Alignment inferred from numeric content is applied by
- * padding only — it does not invent markers the author did not write.
+ * (`| --- |`, not `|-----|`) and carries `:` alignment markers — both the ones
+ * the source declared and the right-alignment inferred for numeric columns, so
+ * that a rendered preview agrees with the padding in the raw text.
  */
 function renderMarkdown(data: TableData): string {
-  const markerAligns = data.columnMeta.map(m => m.align);
+  const markerAligns = data.columnMeta.map(markerAlign);
   const padAligns = alignsOf(data);
   const widths = colWidths(data).map((w, i) =>
     Math.max(w, minMarkerWidth(markerAligns[i] ?? 'default'))
