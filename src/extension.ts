@@ -1,12 +1,8 @@
 import * as vscode from 'vscode';
-import type { OutputStyle } from './table/index.js';
+import type { OutputStyle, TableData } from './table/index.js';
 import {
   ALL_STYLES,
-  populateColumnMeta,
-  preprocess, postprocess,
-  detectStyle, parseTable,
-  render,
-  formatTable, formatDelimited,
+  formatTable, formatDelimited, editTable,
   findTableBounds, findDataLineBounds,
   findColumnAtCursor, addColumn, removeColumn,
 } from './table/index.js';
@@ -106,7 +102,7 @@ async function applyOutput(
 
 function runEditCommand(
   editor: vscode.TextEditor,
-  op: (data: ReturnType<typeof parseTable>, colIdx: number) => ReturnType<typeof parseTable>
+  op: (data: TableData, colIdx: number) => TableData
 ): void {
   const allLines = editor.document.getText().split('\n');
   const cursor = editor.selection.active;
@@ -120,32 +116,11 @@ function runEditCommand(
 
   const range = lineRange(editor.document, start, end);
   const text = editor.document.getText(range);
-  const [bareLines, meta] = preprocess(text);
-  const style = detectStyle(bareLines);
+  const colIdx = findColumnAtCursor(allLines[cursor.line] ?? '', cursor.character);
 
-  let data;
-  try {
-    data = parseTable(bareLines, style);
-  } catch (e) {
-    showError(e instanceof Error ? e.message : String(e));
-    return;
-  }
-
-  const originalLine = allLines[cursor.line] ?? '';
-  const colIdx = findColumnAtCursor(originalLine, cursor.character);
-
-  let newData;
-  try {
-    newData = op(data, colIdx);
-  } catch (e) {
-    showError(e instanceof Error ? e.message : String(e));
-    return;
-  }
-
-  populateColumnMeta(newData);
-  const rendered = render(newData, style);
-  const final = postprocess(rendered, meta);
-  void editor.edit(b => b.replace(range, final));
+  const output = attempt(() => editTable(text, data => op(data, colIdx)));
+  if (!output) return;
+  void editor.edit(b => b.replace(range, output));
 }
 
 // ─── Extension activation ─────────────────────────────────────────────────────

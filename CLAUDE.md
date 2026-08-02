@@ -52,7 +52,7 @@ The extension has no external binary dependency. All table logic is implemented 
 
 **`src/table/edit.ts`** — `findColumnAtCursor`, `addColumn`, `removeColumn`: column editing operations.
 
-**`src/table/format.ts`** — `formatTable(text, targetStyle)` and `formatDelimited(text, style)`: the whole pipeline (preprocess → detect → parse → column meta → render → postprocess) as pure functions that throw on bad input. A table is always parsed with its *detected* style; `targetStyle` only picks the output. Keeping this out of `extension.ts` is what makes the conversion matrix testable.
+**`src/table/format.ts`** — `formatTable(text, targetStyle)`, `formatDelimited(text, style)` and `editTable(text, op)`: the whole pipeline (preprocess → detect → parse → column meta → render → postprocess) as pure functions that throw on bad input. A table is always parsed with its *detected* style; `targetStyle` only picks the output. This is the single copy of the pipeline — keeping it out of `extension.ts` is what makes the conversion matrix and the column-edit path testable.
 
 **`src/extension.ts`** — VS Code integration layer. Reads config (`tablefmt.defaultStyle`), registers the 7 commands, turns thrown errors into `vscode.window.showErrorMessage`, and applies edits to the active editor. No `child_process` usage.
 

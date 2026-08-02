@@ -1,11 +1,12 @@
 import { describe, it, expect } from 'vitest';
-import { formatTable, formatDelimited } from './format.js';
+import { formatTable, formatDelimited, editTable } from './format.js';
+import { addColumn, removeColumn } from './edit.js';
 import { ALL_STYLES } from './types.js';
 
 const GITHUB_SRC = '| item | qty |\n| ---- | --: |\n| spam |  42 |\n| eggs | 451 |';
 
-// psql draws no left border, so its leading cell padding reads back as
-// indentation and the comment/indent layer faithfully preserves it. Ignore
+// psql and rst draw no left border, so their leading cell padding reads back as
+// indentation, which the comment/indent layer then faithfully preserves. Ignore
 // leading whitespace when comparing round trips.
 const deindent = (s: string) => s.split('\n').map(l => l.replace(/^ +/, '')).join('\n');
 
@@ -51,6 +52,44 @@ describe('formatTable - style conversion', () => {
 
   it('throws on input that is not a table', () => {
     expect(() => formatTable('', 'github')).toThrow();
+  });
+});
+
+describe('editTable', () => {
+  const ALIGNED = '| a | b | c |\n| - | :-: | --: |\n| x | y | z |';
+
+  it('round-trips unchanged', () => {
+    expect(editTable(ALIGNED, d => d)).toBe(
+      '| a |  b  |  c |\n' +
+      '| - | :-: | -: |\n' +
+      '| x |  y  |  z |'
+    );
+  });
+
+  it('keeps each marker on its own column when inserting before', () => {
+    expect(editTable(ALIGNED, d => addColumn(d, 0))).toBe(
+      '|   | a |  b  |  c |\n' +
+      '| - | - | :-: | -: |\n' +
+      '|   | x |  y  |  z |'
+    );
+  });
+
+  it('keeps each marker on its own column when removing', () => {
+    expect(editTable(ALIGNED, d => removeColumn(d, 1))).toBe(
+      '| a |  c |\n' +
+      '| - | -: |\n' +
+      '| x |  z |'
+    );
+  });
+
+  it('preserves the comment prefix', () => {
+    expect(editTable('// | a | b |\n// | x | y |', d => removeColumn(d, 1))).toBe(
+      '// | a |\n// | - |\n// | x |'
+    );
+  });
+
+  it('propagates an out-of-range column error', () => {
+    expect(() => editTable(ALIGNED, d => removeColumn(d, 9))).toThrow();
   });
 });
 

@@ -1,4 +1,5 @@
 import { detectDelimiter, parseDelimited } from './dataParser.js';
+import type { TableData } from './model.js';
 import { populateColumnMeta } from './numeric.js';
 import { preprocess, postprocess } from './prettify.js';
 import { render } from './render.js';
@@ -29,4 +30,18 @@ export function formatDelimited(text: string, style: OutputStyle): string {
   const data = parseDelimited(text, detectDelimiter(text));
   populateColumnMeta(data);
   return render(data, style);
+}
+
+/**
+ * Apply a structural edit (add/remove column) and re-render in the table's own
+ * style. Same pipeline as `formatTable`, with `op` between parse and render.
+ *
+ * Throws on unparseable input or an out-of-range column.
+ */
+export function editTable(text: string, op: (data: TableData) => TableData): string {
+  const [bareLines, meta] = preprocess(text);
+  const style = detectStyle(bareLines);
+  const edited = op(parseTable(bareLines, style));
+  populateColumnMeta(edited);
+  return postprocess(render(edited, style), meta);
 }
