@@ -12,6 +12,10 @@
 - Numeric columns now get a `---:` marker in the markdown delimiter row, so a
   rendered preview is right-aligned to match the raw text
 - Column add/remove now shifts the per-column alignments along with the cells
+- Fix: `Format table to style` parsed the source with the *target* style, so
+  converting a pipe table to `rst` failed with "RST table requires at least 2
+  separator lines" and other cross-grammar conversions misread the source. All
+  12 styles now convert to and from each other
 
 ## [0.2.2]
 

@@ -3,10 +3,10 @@ import type { OutputStyle } from './table/index.js';
 import {
   ALL_STYLES,
   populateColumnMeta,
-  preprocess, postprocess, bareLine,
+  preprocess, postprocess,
   detectStyle, parseTable,
-  detectDelimiter, parseDelimited,
   render,
+  formatTable, formatDelimited,
   findTableBounds, findDataLineBounds,
   findColumnAtCursor, addColumn, removeColumn,
 } from './table/index.js';
@@ -82,26 +82,10 @@ function resolveForData(editor: vscode.TextEditor): TextWithRange | null {
 
 // ─── Core operation helpers ───────────────────────────────────────────────────
 
-function formatData(text: string, style: OutputStyle): string | null {
+// Reports the failure to the user and yields null, so callers can bail out.
+function attempt(fn: () => string): string | null {
   try {
-    const delimiter = detectDelimiter(text);
-    const data = parseDelimited(text, delimiter);
-    populateColumnMeta(data);
-    return render(data, style);
-  } catch (e) {
-    showError(e instanceof Error ? e.message : String(e));
-    return null;
-  }
-}
-
-function formatTable(text: string, targetStyle: OutputStyle | null): string | null {
-  try {
-    const [bareLines, meta] = preprocess(text);
-    const style = targetStyle ?? detectStyle(bareLines);
-    const data = parseTable(bareLines, style);
-    populateColumnMeta(data);
-    const rendered = render(data, style);
-    return postprocess(rendered, meta);
+    return fn();
   } catch (e) {
     showError(e instanceof Error ? e.message : String(e));
     return null;
@@ -173,7 +157,7 @@ export function activate(context: vscode.ExtensionContext): void {
       if (!editor) return;
       const resolved = resolveForData(editor);
       if (!resolved) return;
-      const output = formatData(resolved.text, getDefaultStyle());
+      const output = attempt(() => formatDelimited(resolved.text, getDefaultStyle()));
       if (!output) return;
       await applyOutput(editor, resolved.range, output, resolved.text.endsWith('\n'));
     }),
@@ -185,7 +169,7 @@ export function activate(context: vscode.ExtensionContext): void {
       if (!style) return;
       const resolved = resolveForData(editor);
       if (!resolved) return;
-      const output = formatData(resolved.text, style);
+      const output = attempt(() => formatDelimited(resolved.text, style));
       if (!output) return;
       await applyOutput(editor, resolved.range, output, resolved.text.endsWith('\n'));
     }),
@@ -195,7 +179,7 @@ export function activate(context: vscode.ExtensionContext): void {
       if (!editor) return;
       const resolved = resolveForFormat(editor);
       if (!resolved) return;
-      const output = formatTable(resolved.text, null);
+      const output = attempt(() => formatTable(resolved.text, null));
       if (!output) return;
       await applyOutput(editor, resolved.range, output, resolved.text.endsWith('\n'));
     }),
@@ -207,7 +191,7 @@ export function activate(context: vscode.ExtensionContext): void {
       if (!style) return;
       const resolved = resolveForFormat(editor);
       if (!resolved) return;
-      const output = formatTable(resolved.text, style);
+      const output = attempt(() => formatTable(resolved.text, style));
       if (!output) return;
       await applyOutput(editor, resolved.range, output, resolved.text.endsWith('\n'));
     }),

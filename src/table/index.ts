@@ -8,5 +8,6 @@ export { preprocess, postprocess, bareLine } from './prettify.js';
 export { isBorderLine, isAlignmentRow, detectSeparator, detectStyle, parseTable } from './tableParser.js';
 export { detectDelimiter, parseDelimited } from './dataParser.js';
 export { render, colWidths } from './render.js';
+export { formatTable, formatDelimited } from './format.js';
 export { isTableLine, findTableBounds, findDataLineBounds } from './locate.js';
 export { findColumnAtCursor, addColumn, removeColumn } from './edit.js';

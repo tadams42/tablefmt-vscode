@@ -52,6 +52,8 @@ The extension has no external binary dependency. All table logic is implemented 
 
 **`src/table/edit.ts`** — `findColumnAtCursor`, `addColumn`, `removeColumn`: column editing operations.
 
-**`src/extension.ts`** — VS Code integration layer. Reads config (`tablefmt.defaultStyle`), registers the 7 commands, handles errors via `vscode.window.showErrorMessage`, and applies edits to the active editor. No `child_process` usage.
+**`src/table/format.ts`** — `formatTable(text, targetStyle)` and `formatDelimited(text, style)`: the whole pipeline (preprocess → detect → parse → column meta → render → postprocess) as pure functions that throw on bad input. A table is always parsed with its *detected* style; `targetStyle` only picks the output. Keeping this out of `extension.ts` is what makes the conversion matrix testable.
+
+**`src/extension.ts`** — VS Code integration layer. Reads config (`tablefmt.defaultStyle`), registers the 7 commands, turns thrown errors into `vscode.window.showErrorMessage`, and applies edits to the active editor. No `child_process` usage.
 
 The build toolchain is esbuild (configured in `esbuild.mjs`), which bundles `src/extension.ts` into `dist/extension.js` as CJS targeting Node. TypeScript is used only for type-checking (`tsc --noEmit`); esbuild does the actual transpilation. The `vscode` module is marked external so it isn't bundled.
