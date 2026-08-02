@@ -40,7 +40,7 @@ The extension has no external binary dependency. All table logic is implemented 
 
 **`src/table/numeric.ts`** — `populateColumnMeta`: detects numeric columns (all non-empty cells pass `Number.isFinite`) and sets `isNumeric` on each `ColumnMeta`.
 
-**`src/table/prettify.ts`** — `preprocess` / `postprocess` / `bareLine`: strips comment prefixes (`///`, `//`, `#`, `*`) before formatting and restores them after. Ported from `prettify.rs`.
+**`src/table/prettify.ts`** — `preprocess` / `postprocess` / `bareLine`: strips comment prefixes (`///`, `//`, `#`, `*`) and indentation before formatting, restores them after. The prefix is the *common* indent, not the deepest: `psql` and `rst` pad their first column with a space, and treating that as indentation made every reformat drift the table rightwards. Indent beyond the common prefix stays on the bare line so RST's character-offset cell slicing still lines up. Ported from `prettify.rs`.
 
 **`src/table/tableParser.ts`** — `detectStyle` (12-step cascade), `parseTable`, `isAlignmentRow`. Handles pipe-style tables (all styles except `rst`), RST simple tables, and AsciiDoc `[cols=...]` attribute lines. `splitCells` drops only the framing separators, so interior/leading/trailing empty cells survive; markdown delimiter rows carrying `:` markers are recognised as structure and their alignments stored on `ColumnMeta`.
 

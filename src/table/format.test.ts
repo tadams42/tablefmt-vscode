@@ -5,10 +5,6 @@ import { ALL_STYLES } from './types.js';
 
 const GITHUB_SRC = '| item | qty |\n| ---- | --: |\n| spam |  42 |\n| eggs | 451 |';
 
-// psql and rst draw no left border, so their leading cell padding reads back as
-// indentation, which the comment/indent layer then faithfully preserves. Ignore
-// leading whitespace when comparing round trips.
-const deindent = (s: string) => s.split('\n').map(l => l.replace(/^ +/, '')).join('\n');
 
 describe('formatTable - style conversion', () => {
   // Regression: the source used to be parsed with the *target* style, so a
@@ -34,8 +30,23 @@ describe('formatTable - style conversion', () => {
   it('every target style survives a round trip back to github', () => {
     for (const style of ALL_STYLES) {
       const converted = formatTable(GITHUB_SRC, style);
-      expect(deindent(formatTable(converted, 'github')), `via ${style}`).toBe(GITHUB_SRC);
+      expect(formatTable(converted, 'github'), `via ${style}`).toBe(GITHUB_SRC);
     }
+  });
+
+  // The borderless styles pad their first column with a space. Reformatting
+  // must not read that as indentation and drift the table rightwards.
+  it('reformatting a borderless style does not drift right', () => {
+    for (const style of ['psql', 'rst'] as const) {
+      let text = formatTable(GITHUB_SRC, style);
+      for (let i = 0; i < 3; i++) text = formatTable(text, null);
+      expect(text, style).toBe(formatTable(GITHUB_SRC, style));
+    }
+  });
+
+  it('preserves genuine indentation', () => {
+    const indented = GITHUB_SRC.split('\n').map(l => '    ' + l).join('\n');
+    expect(formatTable(indented, 'github')).toBe(indented);
   });
 
   it('null target re-formats in the detected style', () => {

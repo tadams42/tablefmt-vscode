@@ -8,9 +8,32 @@ describe('preprocess', () => {
     expect(meta.comment).toBeNull();
   });
 
-  it('leading spaces uses max', () => {
+  it('leading spaces use the common indent', () => {
     const [, meta] = preprocess('  | a |\n    | b |');
+    expect(meta.preCommentSpaces).toBe(2);
+  });
+
+  it('indent beyond the common prefix stays on the bare line', () => {
+    const [lines] = preprocess('  | a |\n    | b |');
+    expect(lines).toEqual(['| a |', '  | b |']);
+  });
+
+  // psql/rst pad the first column with a space; that is content, not indent.
+  it('a borderless style is not read as indented', () => {
+    const [lines, meta] = preprocess(' item | qty \n------+-----\n spam |  42 ');
+    expect(meta.preCommentSpaces).toBe(0);
+    expect(lines[0]).toBe(' item | qty ');
+  });
+
+  it('blank lines do not drag the common indent to zero', () => {
+    const [, meta] = preprocess('    | a |\n\n    | b |');
     expect(meta.preCommentSpaces).toBe(4);
+  });
+
+  it('comment spacing uses the common indent too', () => {
+    const [lines, meta] = preprocess('#  a\n# b');
+    expect(meta.postCommentSpaces).toBe(1);
+    expect(lines).toEqual([' a', 'b']);
   });
 
   it('tabs count as two', () => {
