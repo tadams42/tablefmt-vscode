@@ -37,7 +37,7 @@ Available styles: `github`, `psql`, `asciidoc`, `jira`, `rst`, `rst-grid`, `orgt
 
 ```
 | Month |  Revenue | Units |
-|-------|----------|-------|
+| ----- | -------: | ----: |
 | Jan   | 12500.50 |   342 |
 | Feb   | 13200.75 |   389 |
 | Mar   | 15800.25 |   421 |

@@ -13,7 +13,7 @@ Dave|28|Paris|Design
 ## 2. Cursor → Format table
 
 | Name | Age | City |
-|---|---|---|
+| - | - | - |
 | Alice | 30 | New York |
 | Bob | 25 | London |
 | Carol | 35 | Tokyo |
@@ -21,7 +21,7 @@ Dave|28|Paris|Design
 ## 3. Add / Remove column
 
 | Name  | Age | City     |
-|-------|-----|----------|
+| ----- | --: | -------- |
 | Alice |  30 | New York |
 | Bob   |  25 | London   |
 | Carol |  35 | Tokyo    |
@@ -29,7 +29,7 @@ Dave|28|Paris|Design
 ## 4. Style conversions
 
 | Language   | Stars | License |
-|------------|-------|---------|
+| ---------- | ----: | ------- |
 | TypeScript | 98200 | Apache  |
 | Rust       | 93500 | MIT     |
 | Python     | 59100 | PSF     |
