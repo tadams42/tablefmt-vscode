@@ -1,0 +1,26 @@
+name: Run tests
+
+on:
+  push:
+
+jobs:
+  run_tests:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '25'
+          cache: 'npm'
+
+      - run: npm ci
+
+      - name: Type check
+        run: npm run compile
+
+      - name: Tests
+        run: npm test
