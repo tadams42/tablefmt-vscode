@@ -44,7 +44,7 @@ The extension has no external binary dependency. All table logic is implemented 
 
 **`src/table/tableParser.ts`** — `detectStyle` (12-step cascade), `parseTable`, `isAlignmentRow`. Handles pipe-style tables (all styles except `rst`), RST simple tables, and AsciiDoc `[cols=...]` attribute lines. `splitCells` drops only the framing separators, so interior/leading/trailing empty cells survive; markdown delimiter rows carrying `:` markers are recognised as structure and their alignments stored on `ColumnMeta`.
 
-**`src/table/dataParser.ts`** — `detectDelimiter` (counts `|`, `;`, `,`, tab; returns highest) and `parseDelimited` for raw delimited data.
+**`src/table/dataParser.ts`** — `detectDelimiter` (counts `|`, `;`, `,`, tab outside double-quoted fields; returns highest) and `parseDelimited` for raw delimited data, with CSV-style quoting (`"a, b"`, `""` escape, quoted newlines become spaces).
 
 **`src/table/render.ts`** — `render(data, style)`: all 12 style renderers. Eight styles use a generic `GridSpec` parameterized renderer; `github`, `jira`, `asciidoc`, and `rst` have custom renderers. Column widths use `[...str].length` for Unicode correctness. Numeric columns are right-aligned in both header and data rows unless the source declared an explicit alignment. The `github` renderer pads its delimiter row like a content row and emits `:` markers for both declared alignments and the right-alignment inferred for numeric columns, so a rendered preview matches the padding in the raw text.
 
