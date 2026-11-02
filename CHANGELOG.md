@@ -8,6 +8,9 @@
 - Fix: a `|` inside a cell is escaped in pipe-separated output (`\|`, or
   `\vert{}` for org-mode) and read back as a literal pipe, so it no longer
   splits the cell
+
+## [0.3.0]
+
 - Fix: blank cells no longer collapse — `|  | c2 | c3 |` keeps its empty first
   column instead of silently dropping it
 - Fix: the `github` (markdown) delimiter row is now padded like a content row
