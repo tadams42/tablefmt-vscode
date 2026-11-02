@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## [0.3.1]
 
 - Fix: `Data to table` honours CSV quoting — a `"..."` field may contain the
   delimiter (and newlines), `""` is a literal quote; delimiter detection ignores
