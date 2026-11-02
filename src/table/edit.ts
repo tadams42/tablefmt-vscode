@@ -13,7 +13,8 @@ export function findColumnAtCursor(originalLine: string, rawCursor: number): num
   let count = 0;
   const bareChars = [...bare];
   for (let i = 0; i < Math.min(cursorInBare, bareChars.length); i++) {
-    if (bareChars[i] === sep) count++;
+    // `\|` is an escaped pipe inside a cell, not a separator.
+    if (bareChars[i] === sep && !(sep === '|' && bareChars[i - 1] === '\\')) count++;
   }
   return Math.max(0, count - 1);
 }

@@ -114,4 +114,38 @@ describe('formatDelimited', () => {
   it('throws on empty input', () => {
     expect(() => formatDelimited('', 'github')).toThrow();
   });
+
+  it('escapes a pipe inside a cell', () => {
+    expect(formatDelimited('expr,op\n"a | b",or', 'github')).toBe(
+      '| expr   | op |\n| ------ | -- |\n| a \\| b | or |'
+    );
+  });
+});
+
+describe('pipe characters inside cells', () => {
+  const PIPE_SRC = '| expr    | op  |\n| ------- | --- |\n| a \\| b  | or  |\n| x\\|\\|y  | \\|\\| |';
+
+  it('survive a round trip through every style', () => {
+    const expected = formatTable(PIPE_SRC, 'github');
+    expect(expected).toContain('a \\| b');
+    for (const style of ALL_STYLES) {
+      const converted = formatTable(PIPE_SRC, style);
+      expect(formatTable(converted, 'github'), `via ${style}`).toBe(expected);
+    }
+  });
+
+  it('are escaped per style', () => {
+    const cell = (style: Parameters<typeof formatTable>[1]) =>
+      formatTable(PIPE_SRC, style).split('\n').find(l => l.includes('a '))!;
+    expect(cell('jira')).toContain('a \\| b');
+    expect(cell('asciidoc')).toContain('a \\| b');
+    expect(cell('orgtbl')).toContain('a \\vert{} b');
+    expect(cell('modern')).toContain('a | b');
+    expect(cell('rst')).toContain('a | b');
+  });
+
+  it('reformatting is stable', () => {
+    const once = formatTable(PIPE_SRC, null);
+    expect(formatTable(once, null)).toBe(once);
+  });
 });

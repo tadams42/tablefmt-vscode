@@ -5,6 +5,9 @@
 - Fix: `Data to table` honours CSV quoting — a `"..."` field may contain the
   delimiter (and newlines), `""` is a literal quote; delimiter detection ignores
   quoted text
+- Fix: a `|` inside a cell is escaped in pipe-separated output (`\|`, or
+  `\vert{}` for org-mode) and read back as a literal pipe, so it no longer
+  splits the cell
 - Fix: blank cells no longer collapse — `|  | c2 | c3 |` keeps its empty first
   column instead of silently dropping it
 - Fix: the `github` (markdown) delimiter row is now padded like a content row

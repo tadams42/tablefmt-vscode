@@ -32,12 +32,34 @@ function effectiveSeparator(trimmed: string, sep: string): string {
 
 // Splits a row into cells, dropping only the framing separators. Interior empty
 // cells are preserved — `|  | c2 |` is two columns, the first one blank.
+//
+// With a `|` separator, `\|` is an escaped pipe inside a cell (GFM, Jira and
+// AsciiDoc all use it; `render` emits it): it doesn't split, and it comes back
+// as a plain `|` so the model holds the unescaped value.
 function splitCells(line: string, sep: string): string[] {
-  let s = line.trim();
+  const s = line.trim();
   const actual = effectiveSeparator(s, sep);
-  if (s.startsWith(actual)) s = s.slice(actual.length);
-  if (s.endsWith(actual)) s = s.slice(0, s.length - actual.length);
-  return s.split(actual).map(c => c.trim());
+  const pipeEscapes = actual.includes('|');
+  const cells: string[] = [];
+  let buf = '';
+  for (let i = 0; i < s.length; i++) {
+    if (pipeEscapes && s[i] === '\\' && s[i + 1] === '|') {
+      buf += '|';
+      i++;
+    } else if (s.startsWith(actual, i)) {
+      cells.push(buf);
+      buf = '';
+      i += actual.length - 1;
+    } else {
+      buf += s[i];
+    }
+  }
+  cells.push(buf);
+  // Drop the framing separators: a leading one leaves an empty first cell, a
+  // trailing one an empty last cell.
+  if (cells.length > 1 && s.startsWith(actual)) cells.shift();
+  if (cells.length > 1 && cells[cells.length - 1] === '' && s.endsWith(actual)) cells.pop();
+  return cells.map(c => c.trim());
 }
 
 // Markdown delimiter cell: `---`, `:--`, `--:` or `:-:`
@@ -155,7 +177,14 @@ export function parseTable(lines: string[], style: OutputStyle): TableData {
     const filtered = lines.filter(l => !l.trimStart().startsWith('[cols='));
     return parsePipeTable(filtered);
   }
-  return parsePipeTable(lines);
+  const data = parsePipeTable(lines);
+  if (style === 'orgtbl') {
+    // Org-mode writes a literal pipe as `\vert` (`\vert{}` when followed by a letter).
+    const unescape = (c: string) => c.replace(/\\vert(\{\})?/g, '|');
+    data.headers = data.headers.map(unescape);
+    data.rows = data.rows.map(r => r.map(unescape));
+  }
+  return data;
 }
 
 export function detectStyle(bareLines: string[]): OutputStyle {

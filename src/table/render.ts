@@ -258,9 +258,38 @@ function renderRst(data: TableData): string {
   return lines.join('\n');
 }
 
+// ─── Cell escaping ────────────────────────────────────────────────────────────
+
+/**
+ * How a literal `|` in a cell is written in styles whose cell separator is `|`.
+ * GFM, Jira and AsciiDoc use `\|`; the plain-text styles follow suit so the
+ * parser reads the cell back intact. Org-mode has no `\|` and uses `\vert{}`.
+ * Styles absent here don't need escaping: their separators are box-drawing
+ * characters, or (rst) cells are found by column position.
+ */
+const PIPE_ESCAPE: Partial<Record<OutputStyle, string>> = {
+  github: '\\|',
+  jira: '\\|',
+  asciidoc: '\\|',
+  psql: '\\|',
+  ascii: '\\|',
+  'rst-grid': '\\|',
+  orgtbl: '\\vert{}',
+};
+
+// Escaped before rendering, so column widths are measured on the text that's
+// actually written out.
+function escapeCells(data: TableData, style: OutputStyle): TableData {
+  const escape = PIPE_ESCAPE[style];
+  if (escape === undefined) return data;
+  const esc = (c: string) => c.replaceAll('|', escape);
+  return { ...data, headers: data.headers.map(esc), rows: data.rows.map(r => r.map(esc)) };
+}
+
 // ─── Main render entry point ──────────────────────────────────────────────────
 
-export function render(data: TableData, style: OutputStyle): string {
+export function render(table: TableData, style: OutputStyle): string {
+  const data = escapeCells(table, style);
   switch (style) {
     case 'github':       return renderMarkdown(data);
     case 'psql':         return renderGrid(data, PSQL);

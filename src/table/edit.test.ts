@@ -31,6 +31,11 @@ describe('findColumnAtCursor', () => {
     expect(findColumnAtCursor('// | col1 | col2 |', 14)).toBe(1);
   });
 
+  it('escaped pipe is not a column separator', () => {
+    // `| a \| b | c |` — cursor on `c` (index 11) is still column 1.
+    expect(findColumnAtCursor('| a \\| b | c |', 11)).toBe(1);
+  });
+
   it('box drawing separator', () => {
     expect(findColumnAtCursor('│ col1 │ col2 │', 3)).toBe(0);
   });

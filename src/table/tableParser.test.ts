@@ -71,6 +71,28 @@ describe('parseTable - github', () => {
   });
 });
 
+describe('parseTable - escaped pipes', () => {
+  it('github: \\| is a literal pipe, not a separator', () => {
+    const data = parseTable(['| a | b |', '| - | - |', '| x \\| y | z |'], 'github');
+    expect(data.rows[0]).toEqual(['x | y', 'z']);
+  });
+
+  it('jira header row with an escaped pipe', () => {
+    const data = parseTable(['|| a \\| b || c ||', '| 1 | 2 |'], 'jira');
+    expect(data.headers).toEqual(['a | b', 'c']);
+  });
+
+  it('orgtbl: \\vert and \\vert{} are literal pipes', () => {
+    const data = parseTable(['| a | b |', '|---+---|', '| x \\vert{}y | \\vert |'], 'orgtbl');
+    expect(data.rows[0]).toEqual(['x |y', '|']);
+  });
+
+  it('box drawing: a plain pipe is cell content', () => {
+    const data = parseTable(['│ a   │ b │', '│ x|y │ z │'], 'sharp');
+    expect(data.rows[0]).toEqual(['x|y', 'z']);
+  });
+});
+
 describe('isAlignmentRow', () => {
   it('accepts colon markers', () => expect(isAlignmentRow('| - | - | -: |', '|')).toBe(true));
   it('accepts all four marker forms', () => expect(isAlignmentRow('| --- | :-- | --: | :-: |', '|')).toBe(true));
